@@ -1,55 +1,31 @@
-# Devil May Cry 5 HDR under CrossOver
+# Devil May Cry 5 HDR
 
-This small tool enables HDR in the tested **DirectX 11** version of Devil May
-Cry 5 when using CrossOver's D3DMetal graphics backend.
+Play the tested **DX11** version of DMC5 in HDR on CrossOver with **D3DMetal**.
+The patcher checks the game, preserves the original executable, and can undo
+its own work. DX12 is not supported.
 
-It is deliberately cautious: it checks that your game executable is the one
-this patch supports, makes a backup before changing anything, and verifies the
-result. If Steam updates the game, the tool will stop safely instead of trying
-to patch an unknown file.
+## Before you begin
 
-> [!IMPORTANT]
-> This is a DX11 HDR patch. DX12 is not supported by this version of the tool.
+Quit Steam and the game. In `dmc5config.ini`, set `TargetPlatform=DirectX11`
+and `UseVendorExtention=Enable`; then make sure the Mac display is ready for
+HDR/EDR.
 
-## Before you start
+## Turn on HDR
 
-- Close Devil May Cry 5 and Steam.
-- Use CrossOver with **D3DMetal**.
-- In `dmc5config.ini`, select `TargetPlatform=DirectX11` and set
-  `UseVendorExtention=Enable`.
-- Make sure your Mac display is already configured for HDR/EDR.
-
-## Recommended: guided patcher
-
-In Terminal, go to this folder and run:
+Run the guided patcher and choose the game executable when asked:
 
 ```bash
 ./patch-hdr.sh
 ```
 
-Choose **Apply the DX11 HDR patch**, then paste or drag `DevilMayCry5.exe` into
-the Terminal window. The tool explains every change before it happens.
-
-It patches the game executable in place because Steam normally launches the
-file with that exact name. Your untouched original is kept next to it as
-`DevilMayCry5.exe.pre-hdr`.
-
-To undo the patch, run `./patch-hdr.sh` again and choose **Restore the original
-game executable**. The backup is retained, so it is never silently replaced.
-
-## Optional: automation
-
-For a script or an experienced Terminal user, this applies the same verified
-patch without prompts:
+The original is kept as `DevilMayCry5.exe.pre-hdr`. Run the tool again whenever
+you want to restore it. For automation:
 
 ```bash
 ./patch-hdr.sh --yes "/path/to/Devil May Cry 5/DevilMayCry5.exe"
 ```
 
-It still creates and verifies the backup before replacing the executable.
+## Video crash?
 
-## Current limitation
-
-HDR activation has been confirmed with DX11/D3DMetal. The game's crash in the
-customisation/equipment menu is a separate issue and is not fixed by this HDR
-patch.
+If a video causes a crash—for example in customisation—use the
+[CrossOver system-GStreamer patcher](../../tools/crossover-system-gstreamer/README.md).

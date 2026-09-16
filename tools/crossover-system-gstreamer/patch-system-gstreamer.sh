@@ -6,6 +6,8 @@ set -euo pipefail
 readonly SYSTEM_FRAMEWORK="/Library/Frameworks/GStreamer.framework"
 readonly MARKER_NAME=".system-gstreamer-patch-applied"
 readonly BACKUP_NAME="gstreamer-system-backup"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPLACEMENT_MODULE="$SCRIPT_DIR/winegstreamer.so"
 
 usage() {
   cat <<'EOF'
@@ -16,16 +18,14 @@ Usage:
       Start the guided patcher.
 
   patch-system-gstreamer.sh --apply --app "/Applications/CrossOver.app" \
-      --replacement /path/to/winegstreamer.so
+      [--dry-run]
       Patch one CrossOver application.
 
   patch-system-gstreamer.sh --restore --app "/Applications/CrossOver.app"
       Restore the exact runtime saved by this tool.
 
-Add --dry-run to preview an operation without changing the application.
-
-The replacement winegstreamer.so is not distributed by this repository. It
-must be an x86_64 module built to use the macOS GStreamer framework.
+The included winegstreamer.so replacement is checked before any changes are
+made. Add --dry-run to preview an operation without changing the application.
 EOF
 }
 
@@ -46,7 +46,6 @@ confirm() {
 
 app=""
 operation=""
-replacement=""
 dry_run=0
 
 while (($#)); do
@@ -54,11 +53,6 @@ while (($#)); do
     --app)
       (($# >= 2)) || fail "--app needs a CrossOver application path"
       app="${2%/}"
-      shift 2
-      ;;
-    --replacement)
-      (($# >= 2)) || fail "--replacement needs a winegstreamer.so path"
-      replacement="$2"
       shift 2
       ;;
     --apply|--restore)
@@ -167,13 +161,11 @@ app_state() {
 }
 
 show_plan() {
-  local module_source="$1"
-
   printf '\nCrossOver application:\n  %s\n' "$app"
   printf 'Bundled GStreamer location:\n  %s\n' "$library_dir"
   printf 'Bundled components to isolate: %d\n' "${#items[@]}"
   printf 'Backup location:\n  %s\n' "$backup_dir"
-  printf 'Replacement module:\n  %s\n' "$module_source"
+  printf 'Included replacement module:\n  %s\n' "$REPLACEMENT_MODULE"
   printf '\nThis changes the CrossOver app, not an individual bottle. All bottles in this app will use macOS GStreamer.\n'
 }
 
@@ -198,17 +190,15 @@ rollback_apply() {
 }
 
 apply_patch() {
-  local module_source="$1"
-  local original_module="$2"
   local item destination staged_module
 
   require_system_gstreamer
-  validate_replacement "$module_source"
+  validate_replacement "$REPLACEMENT_MODULE"
   [[ ! -e "$marker" ]] || fail "this app is already patched by this tool"
   [[ ! -e "$backup_dir" ]] || fail "a previous backup exists at $backup_dir; restore it or inspect it first"
-  [[ -f "$original_module" ]] || fail "original winegstreamer.so was not found"
+  [[ -f "$wine_module" ]] || fail "original winegstreamer.so was not found"
   collect_items
-  show_plan "$module_source"
+  show_plan
   if ((dry_run)); then
     printf '\nDry run only: no application files were changed.\n'
     return
@@ -219,7 +209,7 @@ apply_patch() {
   }
 
   mkdir -p "$backup_dir/$library_rel"
-  cp -p "$original_module" "$backup_dir/winegstreamer.so"
+  cp -p "$wine_module" "$backup_dir/winegstreamer.so"
   cp -p "$wine_module" "$backup_dir/active-winegstreamer.so"
   previous_module="$backup_dir/active-winegstreamer.so"
   trap rollback_apply ERR
@@ -230,11 +220,11 @@ apply_patch() {
     moved_destinations+=("$destination")
   done
   staged_module="$wine_module.system-gstreamer-new"
-  cp -p "$module_source" "$staged_module"
+  cp -p "$REPLACEMENT_MODULE" "$staged_module"
   mv -f "$staged_module" "$wine_module"
   module_replaced=1
   printf 'patched on %s\napp=%s\nlibrary_dir=%s\nreplacement_sha256=%s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$app" "$library_rel" "$(sha256_file "$module_source")" > "$marker"
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$app" "$library_rel" "$(sha256_file "$REPLACEMENT_MODULE")" > "$marker"
   trap - ERR
   printf '\nSuccess. The original CrossOver GStreamer runtime is backed up at:\n  %s\n' "$backup_dir"
   printf 'Restart CrossOver before launching any game.\n'
@@ -279,7 +269,7 @@ discover_apps() {
 }
 
 guided_mode() {
-  local apps=() candidate choice selected state supplied
+  local apps=() candidate choice selected state
 
   while IFS= read -r candidate; do apps+=("$candidate"); done < <(discover_apps)
   ((${#apps[@]})) || fail "no CrossOver applications were found in /Applications"
@@ -302,17 +292,13 @@ guided_mode() {
   case "$state" in
     'system patch installed') restore_patch ;;
     *)
-      printf '\nEnter the full path to a compatible replacement winegstreamer.so:\n> '
-      read -r supplied
-      supplied="${supplied#\'}"
-      supplied="${supplied%\'}"
-      apply_patch "$supplied" "$wine_module"
+      apply_patch
       ;;
   esac
 }
 
 if [[ -z "$operation" ]]; then
-  [[ -z "$app" && -z "$replacement" && "$dry_run" == 0 ]] || fail "choose an operation"
+  [[ -z "$app" && "$dry_run" == 0 ]] || fail "choose an operation"
   guided_mode
   exit 0
 fi
@@ -321,11 +307,9 @@ fi
 resolve_app
 case "$operation" in
   apply)
-    [[ -n "$replacement" ]] || fail "--replacement is required with --apply"
-    apply_patch "$replacement" "$wine_module"
+    apply_patch
     ;;
   restore)
-    [[ -z "$replacement" ]] || fail "--replacement is not used with --restore"
     restore_patch
     ;;
 esac

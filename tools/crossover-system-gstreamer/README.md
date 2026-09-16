@@ -1,62 +1,30 @@
 # CrossOver system-GStreamer patcher
 
-This tool changes a **CrossOver application**, not a bottle. All bottles in the
-selected app will use macOS GStreamer for Wine video playback.
+Use this when a CrossOver game crashes as it opens a video: a cutscene, intro,
+or menu clip. It lets the selected CrossOver app use macOS GStreamer instead.
+Every bottle in that app is affected.
 
-It is useful when a game crashes or fails when opening an in-game video.
+## Before you begin
 
-## Before you start
+Quit CrossOver and all Windows apps. Install the official macOS GStreamer
+runtime from [GStreamer Downloads](https://gstreamer.freedesktop.org/download/).
+The patcher never installs software for you.
 
-- Quit CrossOver and every game running through it.
-- Install GStreamer yourself. This tool will never install software.
-- Provide a compatible x86_64 `winegstreamer.so` replacement that uses the
-  official macOS GStreamer framework.
-
-### Install GStreamer
-
-The recommended option is the official macOS runtime installer from
-[GStreamer Downloads](https://gstreamer.freedesktop.org/download/). It installs
-the framework this tool expects at `/Library/Frameworks/GStreamer.framework`.
-
-Homebrew is another way to install GStreamer:
-
-```bash
-brew install gstreamer
-```
-
-Homebrew uses a different installation layout. Do not mix its libraries with an
-official GStreamer installation in the same CrossOver app.
-
-## Use the guided tool
+## Patch or restore
 
 ```bash
 ./patch-system-gstreamer.sh
 ```
 
-Choose a CrossOver app, then follow the prompts. Before changing anything, the
-tool shows the app, the bundled files it will set aside, the replacement module,
-and the backup location.
+Choose a CrossOver app and confirm the plan. The tool saves the original runtime
+inside that app before making a change. Run the same command later to restore it.
 
-To undo the change, run the same command again and choose the patched app. The
-tool restores the original files it saved.
-
-## Automation
+For automation:
 
 ```bash
-./patch-system-gstreamer.sh --apply \
-  --app "/Applications/CrossOver.app" \
-  --replacement "/path/to/winegstreamer.so"
+./patch-system-gstreamer.sh --apply --app "/Applications/CrossOver Preview.app"
+./patch-system-gstreamer.sh --restore --app "/Applications/CrossOver Preview.app"
 ```
 
-Add `--dry-run` to preview the change without modifying CrossOver. To restore:
-
-```bash
-./patch-system-gstreamer.sh --restore \
-  --app "/Applications/CrossOver.app"
-```
-
-## Safety
-
-The tool creates an app-local backup, refuses to overwrite an existing backup,
-and checks the replacement module before modifying CrossOver. It restores moved
-files if applying the patch fails part way through.
+Add `--dry-run` to preview a change. The patcher refuses to overwrite its
+backup and rolls back an incomplete apply.
