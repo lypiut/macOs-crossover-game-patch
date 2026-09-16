@@ -1,50 +1,44 @@
 # CrossOver system-GStreamer patcher
 
-This tool changes a **CrossOver application**, not a bottle. Once applied, all
-bottles in that app use the macOS GStreamer framework for Wine media playback.
-It is intended for video failures caused by CrossOver's limited bundled codecs,
-such as Devil May Cry 5 crashing when the customisation menu opens a video.
+This tool changes a **CrossOver application**, not a bottle. All bottles in the
+selected app will use macOS GStreamer for Wine video playback.
 
-The tool is separate from game patches because one repaired CrossOver app can
-help multiple games.
+It is useful when a game crashes or fails when opening an in-game video.
 
-## What it changes
+## Before you start
 
-It moves CrossOver's active bundled GStreamer libraries and plugins out of the
-live runtime, then replaces `winegstreamer.so` with a compatible module that
-uses macOS GStreamer. It creates a complete app-local backup first and can
-restore it exactly.
+- Quit CrossOver and every game running through it.
+- Install GStreamer yourself. This tool will never install software.
+- Provide a compatible x86_64 `winegstreamer.so` replacement that uses the
+  official macOS GStreamer framework.
 
-Recent CrossOver builds use `lib/x86_64`; older patchers often targeted the
-obsolete `lib64` location. Leaving the active `lib/x86_64` plugins in place
-creates a mixed runtime, which can cause missing-decoder errors even when
-GStreamer is installed.
+### Install GStreamer
 
-## Requirements
+The recommended option is the official macOS runtime installer from
+[GStreamer Downloads](https://gstreamer.freedesktop.org/download/). It installs
+the framework this tool expects at `/Library/Frameworks/GStreamer.framework`.
 
-- Quit every CrossOver app before changing one.
-- Install the full macOS GStreamer framework, including codecs required by your
-  game.
-- Use a compatible x86_64 `winegstreamer.so` replacement built to use
-  `/Library/Frameworks/GStreamer.framework/Libraries`.
+Homebrew is another way to install GStreamer:
 
-The repository does not distribute replacement modules because they are built
-for particular Wine/CrossOver releases.
+```bash
+brew install gstreamer
+```
 
-## Recommended: guided mode
+Homebrew uses a different installation layout. Do not mix its libraries with an
+official GStreamer installation in the same CrossOver app.
+
+## Use the guided tool
 
 ```bash
 ./patch-system-gstreamer.sh
 ```
 
-Choose the CrossOver application. The tool shows its state and then guides the
-patch, migrates an older partial patch, or offers a restore. It always asks for
-confirmation before changing an app.
+Choose a CrossOver app, then follow the prompts. Before changing anything, the
+tool shows the app, the bundled files it will set aside, the replacement module,
+and the backup location.
 
-For an installation patched by the older `GStreamer_Patcher.sh`, choose the
-detected **legacy partial patch** entry. The migration retains the original
-module backup and, crucially, isolates the active plugin set that the older
-script missed.
+To undo the change, run the same command again and choose the patched app. The
+tool restores the original files it saved.
 
 ## Automation
 
@@ -54,30 +48,15 @@ script missed.
   --replacement "/path/to/winegstreamer.so"
 ```
 
-To repair an older partial patch without supplying the replacement again:
-
-```bash
-./patch-system-gstreamer.sh --migrate-legacy \
-  --app "/Applications/CrossOver Preview.app"
-```
-
-Add `--dry-run` to preview an operation. To restore an app patched by this
-tool:
+Add `--dry-run` to preview the change without modifying CrossOver. To restore:
 
 ```bash
 ./patch-system-gstreamer.sh --restore \
-  --app "/Applications/CrossOver Preview.app"
+  --app "/Applications/CrossOver.app"
 ```
 
 ## Safety
 
-- The tool refuses unknown or incomplete CrossOver layouts.
-- It never overwrites an existing backup.
-- It refuses a replacement module that is not x86_64 or does not reference the
-  macOS GStreamer framework.
-- It refuses restoration if CrossOver has changed the original library paths,
-  rather than overwriting an updated app.
-- A failed apply restores components already moved before exiting.
-
-CrossOver updates can replace the application bundle. Re-run the guided status
-check after an update instead of assuming the patch persists.
+The tool creates an app-local backup, refuses to overwrite an existing backup,
+and checks the replacement module before modifying CrossOver. It restores moved
+files if applying the patch fails part way through.

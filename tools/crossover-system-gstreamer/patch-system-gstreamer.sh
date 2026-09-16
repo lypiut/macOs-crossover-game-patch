@@ -6,8 +6,6 @@ set -euo pipefail
 readonly SYSTEM_FRAMEWORK="/Library/Frameworks/GStreamer.framework"
 readonly MARKER_NAME=".system-gstreamer-patch-applied"
 readonly BACKUP_NAME="gstreamer-system-backup"
-readonly LEGACY_MARKER_NAME=".gstreamer_patch_applied"
-readonly LEGACY_BACKUP_NAME="gstreamer-backup"
 
 usage() {
   cat <<'EOF'
@@ -20,9 +18,6 @@ Usage:
   patch-system-gstreamer.sh --apply --app "/Applications/CrossOver.app" \
       --replacement /path/to/winegstreamer.so
       Patch one CrossOver application.
-
-  patch-system-gstreamer.sh --migrate-legacy --app "/Applications/CrossOver.app"
-      Repair an app patched by the older GStreamer_Patcher.sh layout.
 
   patch-system-gstreamer.sh --restore --app "/Applications/CrossOver.app"
       Restore the exact runtime saved by this tool.
@@ -66,7 +61,7 @@ while (($#)); do
       replacement="$2"
       shift 2
       ;;
-    --apply|--migrate-legacy|--restore)
+    --apply|--restore)
       [[ -z "$operation" ]] || fail "choose only one operation"
       operation="${1#--}"
       shift
@@ -89,8 +84,6 @@ library_dir=""
 library_rel=""
 backup_dir=""
 marker=""
-legacy_marker=""
-legacy_backup=""
 items=()
 
 resolve_app() {
@@ -114,8 +107,6 @@ resolve_app() {
   library_rel="${library_dir#"$root"/}"
   backup_dir="$root/$BACKUP_NAME"
   marker="$root/$MARKER_NAME"
-  legacy_marker="$root/$LEGACY_MARKER_NAME"
-  legacy_backup="$root/$LEGACY_BACKUP_NAME"
 }
 
 collect_items() {
@@ -133,10 +124,29 @@ collect_items() {
   ((${#items[@]})) || fail "no bundled GStreamer components were found in $library_dir"
 }
 
+show_gstreamer_setup() {
+  cat >&2 <<'EOF'
+
+GStreamer is required before this patch can be applied. This tool never installs
+software for you.
+
+Recommended: install the official macOS runtime package from:
+  https://gstreamer.freedesktop.org/download/
+
+Alternative: Homebrew can install GStreamer with:
+  brew install gstreamer
+
+This patcher expects the official framework at
+/Library/Frameworks/GStreamer.framework. Do not mix an official installation
+with Homebrew libraries in the same CrossOver app.
+EOF
+}
+
 require_system_gstreamer() {
-  [[ -d "$SYSTEM_FRAMEWORK" ]] || fail "macOS GStreamer is not installed at $SYSTEM_FRAMEWORK"
-  [[ -f "$SYSTEM_FRAMEWORK/Libraries/libgstreamer-1.0.0.dylib" ]] || \
-    fail "the macOS GStreamer framework looks incomplete"
+  if [[ ! -d "$SYSTEM_FRAMEWORK" || ! -f "$SYSTEM_FRAMEWORK/Libraries/libgstreamer-1.0.0.dylib" ]]; then
+    show_gstreamer_setup
+    fail "the official macOS GStreamer framework was not found"
+  fi
 }
 
 validate_replacement() {
@@ -151,8 +161,6 @@ validate_replacement() {
 app_state() {
   if [[ -f "$marker" ]]; then
     printf 'system patch installed\n'
-  elif [[ -f "$legacy_marker" ]]; then
-    printf 'legacy partial patch detected\n'
   else
     printf 'unpatched\n'
   fi
@@ -173,7 +181,6 @@ moved_sources=()
 moved_destinations=()
 previous_module=""
 module_replaced=0
-applied=0
 
 rollback_apply() {
   local index
@@ -229,27 +236,8 @@ apply_patch() {
   printf 'patched on %s\napp=%s\nlibrary_dir=%s\nreplacement_sha256=%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$app" "$library_rel" "$(sha256_file "$module_source")" > "$marker"
   trap - ERR
-  applied=1
   printf '\nSuccess. The original CrossOver GStreamer runtime is backed up at:\n  %s\n' "$backup_dir"
   printf 'Restart CrossOver before launching any game.\n'
-}
-
-migrate_legacy() {
-  local original_module
-
-  [[ -f "$legacy_marker" ]] || fail "this app is not marked as patched by the older tool"
-  [[ -f "$legacy_backup/lib/wine/x86_64-unix/winegstreamer.so" ]] || \
-    fail "the older patch's original winegstreamer backup is missing"
-  [[ ! -e "$backup_dir" ]] || fail "a system-GStreamer backup already exists: $backup_dir"
-  original_module="$legacy_backup/lib/wine/x86_64-unix/winegstreamer.so"
-  apply_patch "$wine_module" "$original_module"
-  if ((dry_run)); then
-    return
-  fi
-  ((applied)) || return
-  mv "$legacy_marker" "$backup_dir/legacy-marker"
-  mv "$legacy_backup" "$backup_dir/legacy-gstreamer-backup"
-  printf 'The older patch marker and backup were preserved inside the new backup.\n'
 }
 
 restore_patch() {
@@ -313,10 +301,6 @@ guided_mode() {
   state="$(app_state)"
   case "$state" in
     'system patch installed') restore_patch ;;
-    'legacy partial patch detected')
-      printf '\nAn older partial patch was found. This tool can migrate it safely.\n'
-      migrate_legacy
-      ;;
     *)
       printf '\nEnter the full path to a compatible replacement winegstreamer.so:\n> '
       read -r supplied
@@ -338,12 +322,7 @@ resolve_app
 case "$operation" in
   apply)
     [[ -n "$replacement" ]] || fail "--replacement is required with --apply"
-    [[ ! -f "$legacy_marker" ]] || fail "a legacy patch was detected; use --migrate-legacy instead"
     apply_patch "$replacement" "$wine_module"
-    ;;
-  migrate-legacy)
-    [[ -z "$replacement" ]] || fail "--replacement is not used with --migrate-legacy"
-    migrate_legacy
     ;;
   restore)
     [[ -z "$replacement" ]] || fail "--replacement is not used with --restore"
