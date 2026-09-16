@@ -60,6 +60,46 @@ complete NVIDIA path also makes it request
 that extension as unimplemented, so DXMT is not currently recommended for this
 patch.
 
+## Launch with macOS Game Mode
+
+`launch-with-game-mode.sh` runs DMC5 through CrossOver and temporarily forces
+macOS Game Mode on. It restores the system policy to `auto` when CrossOver
+returns. The launcher uses the Xcode toolchain command:
+
+```text
+xcrun --toolchain XcodeDefault gamepolicyctl game-mode set on
+```
+
+`gamepolicyctl` currently ships with full Xcode and is not available in the
+standalone Command Line Tools package. If it cannot be found, the script prints
+a warning and launches the game without changing Game Mode.
+
+Example using CrossOver Preview and the Metal HUD:
+
+```bash
+./launch-with-game-mode.sh --metal-hud \
+  --crossover-app "/Applications/CrossOver Preview.app" \
+  /path/to/DevilMayCry5.hdr.exe
+```
+
+The launcher waits for the Windows process so it can restore Game Mode. Do not
+add CrossOver's `--no-wait` option. Because Steam can redirect a side-by-side
+executable to its registered original, an in-place patched executable may be
+required for normal Steam launches.
+
+Preview the resolved commands without changing Game Mode or launching DMC5:
+
+```bash
+./launch-with-game-mode.sh --dry-run /path/to/DevilMayCry5.hdr.exe
+```
+
+The Game Mode override is system-wide while active. If the script is forcibly
+terminated, restore the automatic policy manually:
+
+```bash
+xcrun --toolchain XcodeDefault gamepolicyctl game-mode set auto
+```
+
 ## Scope
 
 This is a binary compatibility patch, not a general HDR mod. A game update will

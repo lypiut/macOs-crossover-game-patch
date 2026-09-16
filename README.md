@@ -6,6 +6,7 @@ CrossOver on macOS.
 Each game has its own directory with:
 
 - a patcher that refuses unknown game builds;
+- optional launch helpers for CrossOver-specific runtime features;
 - documentation for the exact behavior being changed;
 - known backend-specific limitations and a rollback path.
 
