@@ -14,6 +14,10 @@ Each game has its own directory with:
 
 - [Devil May Cry 5 HDR](games/devil-may-cry-5/README.md)
 
+## Runtime tools
+
+- [CrossOver system-GStreamer patcher](tools/crossover-system-gstreamer/README.md)
+
 The repository does not distribute game binaries or proprietary CrossOver
 components.
 

@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+
+# This affects every bottle in the selected CrossOver application.
+set -euo pipefail
+
+readonly SYSTEM_FRAMEWORK="/Library/Frameworks/GStreamer.framework"
+readonly MARKER_NAME=".system-gstreamer-patch-applied"
+readonly BACKUP_NAME="gstreamer-system-backup"
+readonly LEGACY_MARKER_NAME=".gstreamer_patch_applied"
+readonly LEGACY_BACKUP_NAME="gstreamer-backup"
+
+usage() {
+  cat <<'EOF'
+CrossOver system-GStreamer patcher
+
+Usage:
+  patch-system-gstreamer.sh
+      Start the guided patcher.
+
+  patch-system-gstreamer.sh --apply --app "/Applications/CrossOver.app" \
+      --replacement /path/to/winegstreamer.so
+      Patch one CrossOver application.
+
+  patch-system-gstreamer.sh --migrate-legacy --app "/Applications/CrossOver.app"
+      Repair an app patched by the older GStreamer_Patcher.sh layout.
+
+  patch-system-gstreamer.sh --restore --app "/Applications/CrossOver.app"
+      Restore the exact runtime saved by this tool.
+
+Add --dry-run to preview an operation without changing the application.
+
+The replacement winegstreamer.so is not distributed by this repository. It
+must be an x86_64 module built to use the macOS GStreamer framework.
+EOF
+}
+
+fail() {
+  printf '\nUnable to continue: %s\n' "$*" >&2
+  exit 1
+}
+
+sha256_file() {
+  shasum -a 256 "$1" | awk '{print $1}'
+}
+
+confirm() {
+  local answer
+  read -r -p "$1 [y/N] " answer
+  [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+app=""
+operation=""
+replacement=""
+dry_run=0
+
+while (($#)); do
+  case "$1" in
+    --app)
+      (($# >= 2)) || fail "--app needs a CrossOver application path"
+      app="${2%/}"
+      shift 2
+      ;;
+    --replacement)
+      (($# >= 2)) || fail "--replacement needs a winegstreamer.so path"
+      replacement="$2"
+      shift 2
+      ;;
+    --apply|--migrate-legacy|--restore)
+      [[ -z "$operation" ]] || fail "choose only one operation"
+      operation="${1#--}"
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *) fail "unknown option: $1" ;;
+  esac
+done
+
+root=""
+wine_module=""
+library_dir=""
+library_rel=""
+backup_dir=""
+marker=""
+legacy_marker=""
+legacy_backup=""
+items=()
+
+resolve_app() {
+  local candidate fallback=""
+
+  [[ -d "$app" ]] || fail "CrossOver application not found: $app"
+  [[ "$(basename "$app")" == *.app ]] || fail "please select a CrossOver .app bundle"
+  root="$app/Contents/SharedSupport/CrossOver"
+  [[ -d "$root" ]] || fail "this does not look like a CrossOver application: $app"
+  wine_module="$root/lib/wine/x86_64-unix/winegstreamer.so"
+  [[ -f "$wine_module" ]] || fail "winegstreamer.so was not found in this app"
+  for candidate in "$root/lib/x86_64" "$root/lib64"; do
+    if [[ -d "$candidate/gstreamer-1.0" ]]; then
+      library_dir="$candidate"
+      break
+    fi
+    [[ -d "$candidate" && -z "$fallback" ]] && fallback="$candidate"
+  done
+  [[ -n "$library_dir" ]] || library_dir="$fallback"
+  [[ -n "$library_dir" ]] || fail "could not find the active bundled GStreamer directory"
+  library_rel="${library_dir#"$root"/}"
+  backup_dir="$root/$BACKUP_NAME"
+  marker="$root/$MARKER_NAME"
+  legacy_marker="$root/$LEGACY_MARKER_NAME"
+  legacy_backup="$root/$LEGACY_BACKUP_NAME"
+}
+
+collect_items() {
+  items=()
+  while IFS= read -r -d '' item; do
+    items+=("$item")
+  done < <(
+    find "$library_dir" -maxdepth 1 -mindepth 1 \( -type f -o -type d \) \
+      \( -name 'libgst*.dylib' -o -name 'libgio-2.0*.dylib' -o \
+         -name 'libglib-2.0*.dylib' -o -name 'libgmodule-2.0*.dylib' -o \
+         -name 'libgobject-2.0*.dylib' -o -name 'libgthread-2.0*.dylib' -o \
+         -name 'libffi*.dylib' -o -name 'libintl*.dylib' -o \
+         -name 'libpcre2*.dylib' -o -name 'gstreamer-1.0' \) -print0
+  )
+  ((${#items[@]})) || fail "no bundled GStreamer components were found in $library_dir"
+}
+
+require_system_gstreamer() {
+  [[ -d "$SYSTEM_FRAMEWORK" ]] || fail "macOS GStreamer is not installed at $SYSTEM_FRAMEWORK"
+  [[ -f "$SYSTEM_FRAMEWORK/Libraries/libgstreamer-1.0.0.dylib" ]] || \
+    fail "the macOS GStreamer framework looks incomplete"
+}
+
+validate_replacement() {
+  local module="$1"
+
+  [[ -f "$module" ]] || fail "replacement module not found: $module"
+  file "$module" | grep -q 'x86_64' || fail "replacement winegstreamer.so must contain x86_64 code"
+  otool -l "$module" | grep -Fq "$SYSTEM_FRAMEWORK/Libraries" || \
+    fail "replacement winegstreamer.so is not configured for the macOS GStreamer framework"
+}
+
+app_state() {
+  if [[ -f "$marker" ]]; then
+    printf 'system patch installed\n'
+  elif [[ -f "$legacy_marker" ]]; then
+    printf 'legacy partial patch detected\n'
+  else
+    printf 'unpatched\n'
+  fi
+}
+
+show_plan() {
+  local module_source="$1"
+
+  printf '\nCrossOver application:\n  %s\n' "$app"
+  printf 'Bundled GStreamer location:\n  %s\n' "$library_dir"
+  printf 'Bundled components to isolate: %d\n' "${#items[@]}"
+  printf 'Backup location:\n  %s\n' "$backup_dir"
+  printf 'Replacement module:\n  %s\n' "$module_source"
+  printf '\nThis changes the CrossOver app, not an individual bottle. All bottles in this app will use macOS GStreamer.\n'
+}
+
+moved_sources=()
+moved_destinations=()
+previous_module=""
+module_replaced=0
+applied=0
+
+rollback_apply() {
+  local index
+  set +e
+  if ((module_replaced)) && [[ -n "$previous_module" && -f "$previous_module" ]]; then
+    cp -p "$previous_module" "$wine_module"
+  fi
+  for ((index=${#moved_sources[@]} - 1; index >= 0; index--)); do
+    if [[ -e "${moved_destinations[index]}" && ! -e "${moved_sources[index]}" ]]; then
+      mv "${moved_destinations[index]}" "${moved_sources[index]}"
+    fi
+  done
+  rm -rf "$backup_dir"
+  printf '\nThe patch was rolled back because an operation failed.\n' >&2
+}
+
+apply_patch() {
+  local module_source="$1"
+  local original_module="$2"
+  local item destination staged_module
+
+  require_system_gstreamer
+  validate_replacement "$module_source"
+  [[ ! -e "$marker" ]] || fail "this app is already patched by this tool"
+  [[ ! -e "$backup_dir" ]] || fail "a previous backup exists at $backup_dir; restore it or inspect it first"
+  [[ -f "$original_module" ]] || fail "original winegstreamer.so was not found"
+  collect_items
+  show_plan "$module_source"
+  if ((dry_run)); then
+    printf '\nDry run only: no application files were changed.\n'
+    return
+  fi
+  confirm "Create the backup and apply this system-GStreamer patch?" || {
+    printf 'No changes were made.\n'
+    return
+  }
+
+  mkdir -p "$backup_dir/$library_rel"
+  cp -p "$original_module" "$backup_dir/winegstreamer.so"
+  cp -p "$wine_module" "$backup_dir/active-winegstreamer.so"
+  previous_module="$backup_dir/active-winegstreamer.so"
+  trap rollback_apply ERR
+  for item in "${items[@]}"; do
+    destination="$backup_dir/$library_rel/$(basename "$item")"
+    mv "$item" "$destination"
+    moved_sources+=("$item")
+    moved_destinations+=("$destination")
+  done
+  staged_module="$wine_module.system-gstreamer-new"
+  cp -p "$module_source" "$staged_module"
+  mv -f "$staged_module" "$wine_module"
+  module_replaced=1
+  printf 'patched on %s\napp=%s\nlibrary_dir=%s\nreplacement_sha256=%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$app" "$library_rel" "$(sha256_file "$module_source")" > "$marker"
+  trap - ERR
+  applied=1
+  printf '\nSuccess. The original CrossOver GStreamer runtime is backed up at:\n  %s\n' "$backup_dir"
+  printf 'Restart CrossOver before launching any game.\n'
+}
+
+migrate_legacy() {
+  local original_module
+
+  [[ -f "$legacy_marker" ]] || fail "this app is not marked as patched by the older tool"
+  [[ -f "$legacy_backup/lib/wine/x86_64-unix/winegstreamer.so" ]] || \
+    fail "the older patch's original winegstreamer backup is missing"
+  [[ ! -e "$backup_dir" ]] || fail "a system-GStreamer backup already exists: $backup_dir"
+  original_module="$legacy_backup/lib/wine/x86_64-unix/winegstreamer.so"
+  apply_patch "$wine_module" "$original_module"
+  if ((dry_run)); then
+    return
+  fi
+  ((applied)) || return
+  mv "$legacy_marker" "$backup_dir/legacy-marker"
+  mv "$legacy_backup" "$backup_dir/legacy-gstreamer-backup"
+  printf 'The older patch marker and backup were preserved inside the new backup.\n'
+}
+
+restore_patch() {
+  local backup_libraries=() item target staged_module
+
+  [[ -f "$marker" ]] || fail "this app is not patched by this tool"
+  [[ -f "$backup_dir/winegstreamer.so" ]] || fail "the original winegstreamer backup is missing"
+  [[ -d "$backup_dir/$library_rel" ]] || fail "the bundled library backup is missing"
+  while IFS= read -r -d '' item; do
+    backup_libraries+=("$item")
+  done < <(find "$backup_dir/$library_rel" -maxdepth 1 -mindepth 1 -print0)
+  ((${#backup_libraries[@]})) || fail "the bundled library backup is empty"
+  for item in "${backup_libraries[@]}"; do
+    target="$library_dir/$(basename "$item")"
+    [[ ! -e "$target" ]] || fail "refusing to overwrite $target; CrossOver may have been updated"
+  done
+  printf '\nThis will restore CrossOver\x27s original winegstreamer module and %d bundled components.\n' "${#backup_libraries[@]}"
+  if ((dry_run)); then
+    printf 'Dry run only: no application files were changed.\n'
+    return
+  fi
+  confirm "Restore this CrossOver application now?" || {
+    printf 'No changes were made.\n'
+    return
+  }
+  staged_module="$wine_module.system-gstreamer-restore"
+  cp -p "$backup_dir/winegstreamer.so" "$staged_module"
+  for item in "${backup_libraries[@]}"; do
+    mv "$item" "$library_dir/$(basename "$item")"
+  done
+  mv -f "$staged_module" "$wine_module"
+  rm -f "$marker"
+  rm -rf "$backup_dir"
+  printf '\nCrossOver\x27s original GStreamer runtime has been restored. Restart CrossOver before launching a game.\n'
+}
+
+discover_apps() {
+  find /Applications -maxdepth 1 -type d -name 'CrossOver*.app' -print | sort
+}
+
+guided_mode() {
+  local apps=() candidate choice selected state supplied
+
+  while IFS= read -r candidate; do apps+=("$candidate"); done < <(discover_apps)
+  ((${#apps[@]})) || fail "no CrossOver applications were found in /Applications"
+  printf '\nCrossOver system-GStreamer patcher\n\n'
+  for choice in "${!apps[@]}"; do
+    app="${apps[choice]}"
+    resolve_app
+    printf '%d) %s — %s\n' "$((choice + 1))" "$(basename "$app")" "$(app_state)"
+  done
+  printf 'q) Quit\n\nChoose an application: '
+  read -r selected
+  [[ "$selected" =~ ^[0-9]+$ ]] || {
+    [[ "$selected" =~ ^[Qq]$ ]] && return
+    fail "please choose an application number"
+  }
+  ((selected >= 1 && selected <= ${#apps[@]})) || fail "invalid application number"
+  app="${apps[selected - 1]}"
+  resolve_app
+  state="$(app_state)"
+  case "$state" in
+    'system patch installed') restore_patch ;;
+    'legacy partial patch detected')
+      printf '\nAn older partial patch was found. This tool can migrate it safely.\n'
+      migrate_legacy
+      ;;
+    *)
+      printf '\nEnter the full path to a compatible replacement winegstreamer.so:\n> '
+      read -r supplied
+      supplied="${supplied#\'}"
+      supplied="${supplied%\'}"
+      apply_patch "$supplied" "$wine_module"
+      ;;
+  esac
+}
+
+if [[ -z "$operation" ]]; then
+  [[ -z "$app" && -z "$replacement" && "$dry_run" == 0 ]] || fail "choose an operation"
+  guided_mode
+  exit 0
+fi
+
+[[ -n "$app" ]] || fail "--app is required for non-interactive use"
+resolve_app
+case "$operation" in
+  apply)
+    [[ -n "$replacement" ]] || fail "--replacement is required with --apply"
+    [[ ! -f "$legacy_marker" ]] || fail "a legacy patch was detected; use --migrate-legacy instead"
+    apply_patch "$replacement" "$wine_module"
+    ;;
+  migrate-legacy)
+    [[ -z "$replacement" ]] || fail "--replacement is not used with --migrate-legacy"
+    migrate_legacy
+    ;;
+  restore)
+    [[ -z "$replacement" ]] || fail "--replacement is not used with --restore"
+    restore_patch
+    ;;
+esac
