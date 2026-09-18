@@ -16,19 +16,9 @@ backup where applicable, and includes a restore path.
 
 | Patch | What it does | Requirements |
 | --- | --- | --- |
-| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver Preview, D3DMetal, an HDR display, and the supported DMC5 build |
+| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver with D3DMetal or DXMT, an HDR display, and the supported DMC5 build |
 
-### Devil May Cry 5 HDR preview
-
-These SDR previews link to the original 5120×2880 HDR HEIC captures. Whether
-the originals display in HDR depends on your browser, macOS version, and
-display.
-
-<p align="center">
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-neon.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-neon-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright blue neon sign" width="32%"></a>
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-gunshot.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-gunshot-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright gunshot against a dark background" width="32%"></a>
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-multilight.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-multilight-preview.jpg" alt="Devil May Cry 5 HDR scene with gunfire and multiple light sources" width="32%"></a>
-</p>
+[Installation, HDR captures, and technical details →](games/devil-may-cry-5/README.md)
 
 ## Runtime tools
 
