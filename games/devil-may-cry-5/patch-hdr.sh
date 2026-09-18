@@ -13,20 +13,20 @@ readonly BUNDLED_SHADER_PAK="${SCRIPT_DIR}/assets/${SHADER_PAK_NAME}"
 
 usage() {
   cat <<'EOF'
-Devil May Cry 5 HDR patch for CrossOver
+Devil May Cry 5 HDR patch
 
 Usage:
   patch-hdr.sh
       Start the guided patcher.
 
   patch-hdr.sh --yes /path/to/DevilMayCry5.exe
-      Apply the complete DX11/DX12 HDR patch without prompts.
+      Apply the HDR patch without prompts.
 
   patch-hdr.sh --restore --yes /path/to/DevilMayCry5.exe
-      Restore the original executable and remove this patch's shader PAK.
+      Restore the original executable and remove the shader PAK.
 
   patch-hdr.sh --check /path/to/DevilMayCry5.exe
-      Report the executable and shader-Pak states without changing them.
+      Show the current patch state without changing anything.
 
   patch-hdr.sh --help
       Show this help.
@@ -147,7 +147,7 @@ apply_patch() {
   pak_state="$(shader_pak_state "$executable")"
   [[ "$pak_state" != conflict ]] || fail "A different $SHADER_PAK_NAME already exists. Move it out of the game directory before applying this patch."
   if [[ "$state" == patched && "$pak_state" == installed ]]; then
-    printf '\nThe complete HDR patch is already installed. Nothing was changed.\n'
+    printf '\nThe HDR patch is already installed. Nothing was changed.\n'
     return
   fi
 
@@ -192,7 +192,7 @@ apply_patch() {
   if [[ -n "$pak_tmp" ]]; then mv -f "$pak_tmp" "$pak"; pak_tmp=""; fi
   if [[ -n "$executable_tmp" ]]; then mv -f "$executable_tmp" "$executable"; executable_tmp=""; fi
   trap - RETURN
-  printf '\nSuccess: the complete DX11/DX12 HDR patch is installed.\n'
+  printf '\nSuccess: the HDR patch is installed.\n'
   printf 'Your original file is safely kept at:\n  %s\n' "$backup"
 }
 
@@ -229,7 +229,7 @@ restore_original() {
   pak="$(shader_pak_path "$executable")"
   [[ "$pak_state" != installed ]] || rm -f "$pak"
   trap - RETURN
-  printf '\nThe original game files have been restored. The executable backup was kept.\n'
+  printf '\nThe original game files have been restored. The backup was kept.\n'
 }
 
 report_state() {
@@ -249,12 +249,11 @@ guided_mode() {
   while true; do
     cat <<'EOF'
 
-Devil May Cry 5 — HDR patch for CrossOver
+Devil May Cry 5 — HDR patch
 
-This tool installs one verified executable and one HDR shader PAK.
-The same executable supports DirectX 11 and 12.
+This tool installs the HDR executable patch and shader archive.
 
-1) Apply the complete DX11/DX12 HDR patch
+1) Apply the HDR patch
 2) Restore the original game files
 3) Quit
 EOF
