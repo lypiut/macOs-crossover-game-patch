@@ -95,8 +95,9 @@ HDR playback of the original depends on the browser, operating system, and
 display.
 
 <p>
-  <a href="screenshots/dx11-hdr-neon.heic"><img src="screenshots/dx11-hdr-neon-preview.jpg" alt="DMC5 HDR scene with a bright blue neon sign" width="49%"></a>
-  <a href="screenshots/dx11-hdr-gunshot.heic"><img src="screenshots/dx11-hdr-gunshot-preview.jpg" alt="DMC5 HDR scene with a bright gunshot against a dark background" width="49%"></a>
+  <a href="screenshots/dx11-hdr-neon.heic"><img src="screenshots/dx11-hdr-neon-preview.jpg" alt="DMC5 HDR scene with a bright blue neon sign" width="32%"></a>
+  <a href="screenshots/dx11-hdr-gunshot.heic"><img src="screenshots/dx11-hdr-gunshot-preview.jpg" alt="DMC5 HDR scene with a bright gunshot against a dark background" width="32%"></a>
+  <a href="screenshots/dx11-hdr-multilight.heic"><img src="screenshots/dx11-hdr-multilight-preview.jpg" alt="Complex DMC5 HDR scene with gunfire and multiple light sources" width="32%"></a>
 </p>
 
 ## Credits
