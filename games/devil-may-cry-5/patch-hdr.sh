@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
 # Universal DMC5 HDR patch for the exact executable verified below.
-# It enables the separate DX11 and DX12 paths in one game binary.
+# It enables the engine HDR path and installs the two tested tone-mapping shaders.
 set -euo pipefail
 
 readonly ORIGINAL_SHA256="1b881b52184fbb4de08740d68e77b49093bf4c5e8310ba185454fd34eba18e1d"
 readonly PATCHED_SHA256="9f44117a8a38f54a4c35de0b24932c63e0dab7bce6f72bf1dd0124febe49c5da"
+readonly SHADER_PAK_NAME="re_chunk_000.pak.patch_008.pak"
+readonly SHADER_PAK_SHA256="4c1c31e8a54c41ab9ba811d262345f75bde693b7be828afa4d7a66c45159341d"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly BUNDLED_SHADER_PAK="${SCRIPT_DIR}/assets/${SHADER_PAK_NAME}"
 
 usage() {
   cat <<'EOF'
@@ -16,10 +20,13 @@ Usage:
       Start the guided patcher.
 
   patch-hdr.sh --yes /path/to/DevilMayCry5.exe
-      Apply the universal DX11/DX12 HDR patch without prompts.
+      Apply the complete DX11/DX12 HDR patch without prompts.
+
+  patch-hdr.sh --restore --yes /path/to/DevilMayCry5.exe
+      Restore the original executable and remove this patch's shader PAK.
 
   patch-hdr.sh --check /path/to/DevilMayCry5.exe
-      Report whether the executable is supported, original, or patched.
+      Report the executable and shader-Pak states without changing them.
 
   patch-hdr.sh --help
       Show this help.
@@ -71,6 +78,24 @@ file_state() {
   esac
 }
 
+shader_pak_path() {
+  printf '%s/%s\n' "$(dirname -- "$1")" "$SHADER_PAK_NAME"
+}
+
+shader_pak_state() {
+  local pak hash
+  pak="$(shader_pak_path "$1")"
+  [[ -e "$pak" ]] || { printf 'absent\n'; return; }
+  [[ -f "$pak" ]] || { printf 'conflict\n'; return; }
+  hash="$(sha256_file "$pak")"
+  [[ "$hash" == "$SHADER_PAK_SHA256" ]] && printf 'installed\n' || printf 'conflict\n'
+}
+
+verify_bundled_shader_pak() {
+  [[ -f "$BUNDLED_SHADER_PAK" ]] || fail "The bundled HDR shader PAK is missing: $BUNDLED_SHADER_PAK"
+  [[ "$(sha256_file "$BUNDLED_SHADER_PAK")" == "$SHADER_PAK_SHA256" ]] || fail "The bundled HDR shader PAK failed verification. Nothing was changed."
+}
+
 backup_path() {
   printf '%s.pre-hdr\n' "$1"
 }
@@ -109,67 +134,106 @@ apply_patch_bytes() {
 }
 
 apply_patch() {
-  local executable="$1" allow_without_prompt="$2" state backup tmp actual_hash
+  local executable="$1" allow_without_prompt="$2" state pak_state backup executable_tmp pak pak_tmp actual_hash
   require_supported_path "$executable"
+  verify_bundled_shader_pak
   state="$(file_state "$executable")"
   case "$state" in
-    patched) printf '\nThis game executable is already patched. Nothing was changed.\n'; return ;;
+    patched) ;;
     original) verify_original_layout "$executable" ;;
     unsupported) fail "This is not the DMC5 version supported by this tool. Nothing was changed. Steam may have updated the game." ;;
     *) fail "The game executable could not be read. Nothing was changed." ;;
   esac
+  pak_state="$(shader_pak_state "$executable")"
+  [[ "$pak_state" != conflict ]] || fail "A different $SHADER_PAK_NAME already exists. Move it out of the game directory before applying this patch."
+  if [[ "$state" == patched && "$pak_state" == installed ]]; then
+    printf '\nThe complete HDR patch is already installed. Nothing was changed.\n'
+    return
+  fi
 
   backup="$(backup_path "$executable")"
   if [[ -e "$backup" ]]; then
     [[ "$(file_state "$backup")" == "original" ]] || fail "A backup already exists but does not match the supported original: $backup"
+  elif [[ "$state" == patched ]]; then
+    fail "The executable is patched but its verified original backup is missing. The shader PAK was not installed."
   fi
 
   if [[ "$allow_without_prompt" != yes ]]; then
-    printf '\nThis will patch only this file:\n  %s\n' "$executable"
+    printf '\nThis will patch the game executable and install one shader PAK beside it:\n'
+    printf '  %s\n  %s\n' "$executable" "$(shader_pak_path "$executable")"
     printf 'A safe backup will be kept here:\n  %s\n' "$backup"
-    printf 'The resulting binary supports both DX11 and DX12.\n\n'
+    printf 'The resulting executable supports both DX11 and DX12.\n\n'
     confirm "Apply the HDR patch now?" || { printf 'No changes were made.\n'; return; }
   fi
 
-  if [[ ! -e "$backup" ]]; then
+  if [[ "$state" == original && ! -e "$backup" ]]; then
     cp -p "$executable" "$backup"
     [[ "$(file_state "$backup")" == original ]] || fail "Backup verification failed."
     printf '\nBackup created.\n'
   fi
 
-  tmp="$(mktemp "${executable}.tmp.XXXXXX")"
-  cleanup() { rm -f "$tmp"; }
+  executable_tmp=""
+  pak="$(shader_pak_path "$executable")"
+  pak_tmp=""
+  cleanup() { [[ -z "$executable_tmp" ]] || rm -f "$executable_tmp"; [[ -z "$pak_tmp" ]] || rm -f "$pak_tmp"; }
   trap cleanup RETURN
-  cp -p "$executable" "$tmp"
-  apply_patch_bytes "$tmp"
-  actual_hash="$(sha256_file "$tmp")"
-  [[ "$actual_hash" == "$PATCHED_SHA256" ]] || fail "Verification failed. Your original game executable was left untouched."
-  mv -f "$tmp" "$executable"
+  if [[ "$state" == original ]]; then
+    executable_tmp="$(mktemp "${executable}.tmp.XXXXXX")"
+    cp -p "$executable" "$executable_tmp"
+    apply_patch_bytes "$executable_tmp"
+    actual_hash="$(sha256_file "$executable_tmp")"
+    [[ "$actual_hash" == "$PATCHED_SHA256" ]] || fail "Executable verification failed. Your original game executable was left untouched."
+  fi
+  if [[ "$pak_state" == absent ]]; then
+    pak_tmp="$(mktemp "${pak}.tmp.XXXXXX")"
+    cp -p "$BUNDLED_SHADER_PAK" "$pak_tmp"
+    [[ "$(sha256_file "$pak_tmp")" == "$SHADER_PAK_SHA256" ]] || fail "Shader PAK verification failed. Your game files were left untouched."
+  fi
+  if [[ -n "$pak_tmp" ]]; then mv -f "$pak_tmp" "$pak"; pak_tmp=""; fi
+  if [[ -n "$executable_tmp" ]]; then mv -f "$executable_tmp" "$executable"; executable_tmp=""; fi
   trap - RETURN
-  printf '\nSuccess: the universal DX11/DX12 HDR patch is installed.\n'
+  printf '\nSuccess: the complete DX11/DX12 HDR patch is installed.\n'
   printf 'Your original file is safely kept at:\n  %s\n' "$backup"
 }
 
 restore_original() {
-  local executable="$1" state backup tmp
+  local executable="$1" allow_without_prompt="${2:-no}" state pak_state backup tmp pak
   require_supported_path "$executable"
   state="$(file_state "$executable")"
-  [[ "$state" == patched ]] || {
-    [[ "$state" == original ]] && { printf '\nThis game executable is already original. Nothing was changed.\n'; return; }
-    fail "This executable is not recognized. Nothing was changed."
-  }
+  pak_state="$(shader_pak_state "$executable")"
+  [[ "$state" == original || "$state" == patched ]] || fail "This executable is not recognized. Nothing was changed."
+  [[ "$pak_state" != conflict ]] || fail "A different $SHADER_PAK_NAME exists. It was not removed."
+  if [[ "$state" == original && "$pak_state" == absent ]]; then
+    printf '\nThe original game files are already restored. Nothing was changed.\n'
+    return
+  fi
   backup="$(backup_path "$executable")"
-  [[ -f "$backup" && "$(file_state "$backup")" == original ]] || fail "A matching original backup was not found. Nothing was changed."
-  printf '\nThis will restore the original game executable from:\n  %s\n' "$backup"
-  confirm "Restore it now?" || { printf 'No changes were made.\n'; return; }
-  tmp="$(mktemp "${executable}.tmp.XXXXXX")"
-  cleanup() { rm -f "$tmp"; }
+  if [[ "$state" == patched ]]; then
+    [[ -f "$backup" && "$(file_state "$backup")" == original ]] || fail "A matching original backup was not found. Nothing was changed."
+  fi
+  if [[ "$allow_without_prompt" != yes ]]; then
+    printf "\nThis will restore the original executable and remove this patch's shader PAK.\n"
+    [[ "$state" == patched ]] && printf 'Original backup:\n  %s\n' "$backup"
+    confirm "Restore the game now?" || { printf 'No changes were made.\n'; return; }
+  fi
+  tmp=""
+  cleanup() { [[ -z "$tmp" ]] || rm -f "$tmp"; }
   trap cleanup RETURN
-  cp -p "$backup" "$tmp"
-  [[ "$(file_state "$tmp")" == original ]] || fail "Backup verification failed. Your patched game executable was left untouched."
-  mv -f "$tmp" "$executable"
+  if [[ "$state" == patched ]]; then
+    tmp="$(mktemp "${executable}.tmp.XXXXXX")"
+    cp -p "$backup" "$tmp"
+    [[ "$(file_state "$tmp")" == original ]] || fail "Backup verification failed. Your patched game executable was left untouched."
+    mv -f "$tmp" "$executable"
+    tmp=""
+  fi
+  pak="$(shader_pak_path "$executable")"
+  [[ "$pak_state" != installed ]] || rm -f "$pak"
   trap - RETURN
-  printf '\nThe original game executable has been restored. The backup was kept.\n'
+  printf '\nThe original game files have been restored. The executable backup was kept.\n'
+}
+
+report_state() {
+  printf 'executable: %s\nshader-pak: %s\n' "$(file_state "$1")" "$(shader_pak_state "$1")"
 }
 
 ask_for_executable() {
@@ -187,17 +251,17 @@ guided_mode() {
 
 Devil May Cry 5 — HDR patch for CrossOver
 
-This tool installs one verified game binary that supports DirectX 11 and 12.
-It checks the game version and creates a backup first.
+This tool installs one verified executable and one HDR shader PAK.
+The same executable supports DirectX 11 and 12.
 
-1) Apply the universal DX11/DX12 HDR patch
-2) Restore the original game executable
+1) Apply the complete DX11/DX12 HDR patch
+2) Restore the original game files
 3) Quit
 EOF
     printf '\nChoose an option: '; read -r choice
     case "$choice" in
       1) executable="$(ask_for_executable)"; apply_patch "$executable" no ;;
-      2) executable="$(ask_for_executable)"; restore_original "$executable" ;;
+      2) executable="$(ask_for_executable)"; restore_original "$executable" no ;;
       3|q|Q) printf 'No changes were made.\n'; return ;;
       *) printf 'Please enter 1, 2, or 3.\n' ;;
     esac
@@ -207,7 +271,8 @@ EOF
 case "${1:-}" in
   "") guided_mode ;;
   --yes) (($# == 2)) || fail "--yes needs the full path to DevilMayCry5.exe"; apply_patch "$2" yes ;;
-  --check) (($# == 2)) || fail "--check needs the full path to DevilMayCry5.exe"; require_supported_path "$2"; printf '%s\n' "$(file_state "$2")" ;;
+  --restore) [[ "${2:-}" == --yes && $# == 3 ]] || fail "Use --restore --yes followed by the full path to DevilMayCry5.exe"; restore_original "$3" yes ;;
+  --check) (($# == 2)) || fail "--check needs the full path to DevilMayCry5.exe"; require_supported_path "$2"; report_state "$2" ;;
   -h|--help) (($# == 1)) || fail "--help does not take another option"; usage ;;
-  *) fail "Use the guided tool with no options, --yes, or --check. Try --help for details." ;;
+  *) fail "Use the guided tool with no options, --yes, --restore --yes, or --check. Try --help for details." ;;
 esac
