@@ -71,9 +71,21 @@ game runs through CrossOver. The executable patch bypasses that check for both
 DirectX 11 and DirectX 12. For DX12, it also makes the game request the HDR10/PQ
 output format used by D3DMetal.
 
+The DX12 HDR service contains two hard-coded NVAPI function identifiers:
+`0x84F2A8DF` for HDR capability and `0x351DA224` for display colour control.
+These are NVAPI function IDs, not HDR modes. Under CrossOver, DMC5 does not
+recognise the adapter as the vendor expected by that service, so the service
+returns failure and the HDR transition stops. The patch bypasses those failed
+gates; it does not emulate NVAPI or modify D3DMetal.
+
+The patch then uses DMC5's existing DX12 swapchain call with color-space value
+`12`. D3DMetal translates that request to the Apple PQ color space
+(`kCGColorSpaceITUR_2100_PQ`) and enables the display's extended dynamic range.
+
 The shader archive replaces DMC5's HDR post-process and final Rec.2020/PQ
 conversion shaders. These replacements are adapted from the DMC5 module in
-RenoDX and use DMC5's existing brightness controls.
+RenoDX, run as part of DMC5's normal render pipeline, and use DMC5's existing
+brightness controls. No shader injector is needed at runtime.
 
 ## Screenshots
 
