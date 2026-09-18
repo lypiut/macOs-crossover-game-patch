@@ -66,10 +66,10 @@ shader replacements are loaded by DMC5 from a normal RE Engine patch archive.
 
 ## Technical notes
 
-DMC5 normally rejects its native HDR path when the CrossOver adapter does not
-match the vendor names expected by the game. The executable patch enables the
-existing HDR transition for both backends and makes the DX12 swapchain request
-HDR10/PQ.
+DMC5 already contains native HDR support, but a GPU check blocks it when the
+game runs through CrossOver. The executable patch bypasses that check for both
+DirectX 11 and DirectX 12. For DX12, it also makes the game request the HDR10/PQ
+output format used by D3DMetal.
 
 The shader archive replaces DMC5's HDR post-process and final Rec.2020/PQ
 conversion shaders. These replacements are adapted from the DMC5 module in
