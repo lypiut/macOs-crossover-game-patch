@@ -89,8 +89,15 @@ brightness controls. No shader injector is needed at runtime.
 
 ## Screenshots
 
-<!-- Add before/after HDR screenshots here. A DX12 scene with the Metal HUD is
-     useful for showing the active backend and HDR output. -->
+Captured during the DirectX 11 HDR test. GitHub displays the lightweight SDR
+previews below; select an image to open the original 5120×2880 HDR HEIC capture.
+HDR playback of the original depends on the browser, operating system, and
+display.
+
+<p>
+  <a href="screenshots/dx11-hdr-neon.heic"><img src="screenshots/dx11-hdr-neon-preview.jpg" alt="DMC5 HDR scene with a bright blue neon sign" width="49%"></a>
+  <a href="screenshots/dx11-hdr-gunshot.heic"><img src="screenshots/dx11-hdr-gunshot-preview.jpg" alt="DMC5 HDR scene with a bright gunshot against a dark background" width="49%"></a>
+</p>
 
 ## Credits
 
