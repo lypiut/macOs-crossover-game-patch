@@ -1,7 +1,24 @@
-# Devil May Cry 5 HDR patch
+# Devil May Cry 5 — HDR on macOS
 
-This patch enables DMC5 HDR when the game runs through CrossOver Preview and
-D3DMetal. It supports both DirectX 11 and DirectX 12.
+Enable Devil May Cry 5's native HDR presentation when playing through
+CrossOver Preview and D3DMetal. Both DirectX 11 and DirectX 12 are supported.
+
+<p align="center">
+  <a href="screenshots/dx11-hdr-multilight.heic">
+    <img src="screenshots/dx11-hdr-multilight-preview.jpg" alt="Devil May Cry 5 running in HDR on macOS, with gunfire and multiple bright light sources" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <a href="screenshots/dx11-hdr-neon.heic"><img src="screenshots/dx11-hdr-neon-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright blue neon sign" width="49%"></a>
+  <a href="screenshots/dx11-hdr-gunshot.heic"><img src="screenshots/dx11-hdr-gunshot-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright gunshot against a dark background" width="49%"></a>
+</p>
+
+> The images shown above are lightweight SDR previews. Select one to open the
+> original 5120×2880 HDR HEIC capture. HDR playback depends on your browser,
+> macOS version, and display.
+
+## What the patch changes
 
 The patch installs:
 
@@ -9,6 +26,14 @@ The patch installs:
 - `re_chunk_000.pak.patch_008.pak`, which contains two HDR shader replacements.
 
 The original executable is saved as `DevilMayCry5.exe.pre-hdr`.
+
+## Disclaimer
+
+This patch modifies a copyrighted game executable for personal compatibility
+purposes. It does not distribute the original game executable or proprietary
+game assets. You must own a legitimate copy of Devil May Cry 5. This is an
+independent community project and is not affiliated with or endorsed by
+Capcom, CodeWeavers, Apple, or Valve. Use it at your own risk.
 
 ## Requirements
 
@@ -86,19 +111,6 @@ The shader archive replaces DMC5's HDR post-process and final Rec.2020/PQ
 conversion shaders. These replacements are adapted from the DMC5 module in
 RenoDX, run as part of DMC5's normal render pipeline, and use DMC5's existing
 brightness controls. No shader injector is needed at runtime.
-
-## Screenshots
-
-Captured during the DirectX 11 HDR test. GitHub displays the lightweight SDR
-previews below; select an image to open the original 5120×2880 HDR HEIC capture.
-HDR playback of the original depends on the browser, operating system, and
-display.
-
-<p>
-  <a href="screenshots/dx11-hdr-neon.heic"><img src="screenshots/dx11-hdr-neon-preview.jpg" alt="DMC5 HDR scene with a bright blue neon sign" width="32%"></a>
-  <a href="screenshots/dx11-hdr-gunshot.heic"><img src="screenshots/dx11-hdr-gunshot-preview.jpg" alt="DMC5 HDR scene with a bright gunshot against a dark background" width="32%"></a>
-  <a href="screenshots/dx11-hdr-multilight.heic"><img src="screenshots/dx11-hdr-multilight-preview.jpg" alt="Complex DMC5 HDR scene with gunfire and multiple light sources" width="32%"></a>
-</p>
 
 ## Credits
 
