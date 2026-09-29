@@ -16,7 +16,7 @@ backup where applicable, and includes a restore path.
 
 | Patch | What it does | Requirements |
 | --- | --- | --- |
-| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver with D3DMetal or DXMT, an HDR display, and the supported DMC5 build |
+| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver with D3DMetal or DXMT, an HDR display, and a supported DMC5 build |
 | [Alan Wake 2 — HDR](games/alan-wake-2/README.md) | Enables the game's native HDR setting in `renderer.ini`. | Python 3, an HDR display, and a compatible CrossOver graphics backend |
 
 [Installation, HDR captures, and technical details →](games/devil-may-cry-5/README.md)

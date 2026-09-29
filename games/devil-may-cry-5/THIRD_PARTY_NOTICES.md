@@ -1,7 +1,8 @@
 # Third-party notices
 
 The offline HDR shader replacements in this directory are adapted from
-[RenoDX](https://github.com/clshortfuse/renodx).
+[RenoDX](https://github.com/clshortfuse/renodx) snapshot
+[`fb7183192b47417934e21b970b054e82080d20b6`](https://github.com/clshortfuse/renodx/tree/fb7183192b47417934e21b970b054e82080d20b6).
 
 ## RenoDX
 
