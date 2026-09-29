@@ -1,7 +1,7 @@
 # Devil May Cry 5 — HDR on macOS
 
 Enable Devil May Cry 5's native HDR presentation when playing through
-CrossOver Preview and D3DMetal. Both DirectX 11 and DirectX 12 are supported.
+CrossOver with D3DMetal or DXMT.
 
 <p align="center">
   <a href="screenshots/dx11-hdr-multilight.heic">
@@ -37,7 +37,7 @@ Capcom, CodeWeavers, Apple, or Valve. Use it at your own risk.
 
 ## Requirements
 
-- CrossOver Preview with D3DMetal;
+- CrossOver with D3DMetal or DXMT;
 - an HDR-capable display;
 - the supported DMC5 executable build.
 

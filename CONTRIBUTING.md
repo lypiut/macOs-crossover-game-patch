@@ -18,7 +18,7 @@ When reporting a bug or compatibility result, include:
 - Mac model and chip;
 - macOS version;
 - CrossOver version and edition;
-- graphics backend, such as D3DMetal or DXVK;
+- graphics backend, such as D3DMetal, DXMT, or DXVK;
 - game version and executable SHA-256, when available;
 - DirectX mode, if relevant;
 - the exact command used and complete error output;

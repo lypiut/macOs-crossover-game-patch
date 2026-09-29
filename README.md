@@ -3,9 +3,9 @@
 Community-made compatibility fixes for Windows games running through
 [CrossOver](https://www.codeweavers.com/crossover) on macOS.
 
-The project focuses on small, documented, and reversible changes. Binary patches
-are limited to known game builds; configuration tools validate their target files.
-They create backups where applicable and include restore paths.
+The project focuses on small, documented, and reversible changes. Each patch is
+limited to a known game build, checks files before modifying them, creates a
+backup where applicable, and includes a restore path.
 
 > [!IMPORTANT]
 > This is an independent community project. It is not affiliated with or
@@ -16,20 +16,10 @@ They create backups where applicable and include restore paths.
 
 | Patch | What it does | Requirements |
 | --- | --- | --- |
-| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver Preview, D3DMetal, an HDR display, and the supported DMC5 build |
+| [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver with D3DMetal or DXMT, an HDR display, and the supported DMC5 build |
 | [Alan Wake 2 — HDR](games/alan-wake-2/README.md) | Enables the game's native HDR setting in `renderer.ini`. | Python 3, an HDR display, and a compatible CrossOver graphics backend |
 
-### Devil May Cry 5 HDR preview
-
-These SDR previews link to the original 5120×2880 HDR HEIC captures. Whether
-the originals display in HDR depends on your browser, macOS version, and
-display.
-
-<p align="center">
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-neon.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-neon-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright blue neon sign" width="32%"></a>
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-gunshot.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-gunshot-preview.jpg" alt="Devil May Cry 5 HDR scene with a bright gunshot against a dark background" width="32%"></a>
-  <a href="games/devil-may-cry-5/screenshots/dx11-hdr-multilight.heic"><img src="games/devil-may-cry-5/screenshots/dx11-hdr-multilight-preview.jpg" alt="Devil May Cry 5 HDR scene with gunfire and multiple light sources" width="32%"></a>
-</p>
+[Installation, HDR captures, and technical details →](games/devil-may-cry-5/README.md)
 
 ## Runtime tools
 
@@ -53,8 +43,9 @@ cd games/devil-may-cry-5
 ./patch-hdr.sh
 ```
 
-The binary and runtime patchers are interactive by default. Command-line and
-restore instructions are documented on each patch's page.
+The patchers are interactive by default and show the planned changes before
+asking for confirmation. Command-line and restore instructions are documented
+on each patch's page.
 
 ## Safety and project principles
 
@@ -63,7 +54,7 @@ restore instructions are documented on each patch's page.
 - Keep the generated backups until you have confirmed that the game works.
 - Steam's **Verify integrity of game files** can remove installed patches.
 - CrossOver updates may replace runtime changes or make them incompatible.
-- Review the scripts before running them. The scripts and their exact
+- Review the shell scripts before running them. The scripts and their exact
   file operations are intentionally kept readable.
 
 No game executable, game asset, or proprietary CrossOver component is
