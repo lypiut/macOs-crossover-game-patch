@@ -4,9 +4,9 @@
 # It enables the engine HDR path and installs the two tested tone-mapping shaders.
 set -euo pipefail
 
-readonly ORIGINAL_SHA256="1b881b52184fbb4de08740d68e77b49093bf4c5e8310ba185454fd34eba18e1d"
-readonly PATCHED_SHA256="9f44117a8a38f54a4c35de0b24932c63e0dab7bce6f72bf1dd0124febe49c5da"
-readonly SHADER_PAK_NAME="re_chunk_000.pak.patch_008.pak"
+readonly ORIGINAL_SHA256="5523cb79fe13858335e893ca7ed98b4021a96b8cec92940058cb5d58d09d4169"
+readonly PATCHED_SHA256="ce87ab19457bd062e71884d318579c6fac77b63c4b8435d1e7cbda91fa71f4a1"
+readonly SHADER_PAK_NAME="re_chunk_000.pak.patch_009.pak"
 readonly SHADER_PAK_SHA256="4c1c31e8a54c41ab9ba811d262345f75bde693b7be828afa4d7a66c45159341d"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly BUNDLED_SHADER_PAK="${SCRIPT_DIR}/assets/${SHADER_PAK_NAME}"
@@ -57,14 +57,14 @@ expect_bytes() {
 
 verify_original_layout() {
   local executable="$1" cave
-  expect_bytes "$executable" $((0x02C2CE0F)) 6 0f84c5020000
-  expect_bytes "$executable" $((0x02C1E221)) 7 453aa8b7b33000
-  expect_bytes "$executable" $((0x02C1EA27)) 2 747f
-  expect_bytes "$executable" $((0x02C1EA45)) 2 7461
-  expect_bytes "$executable" $((0x02C12CD8)) 5 0f57c04c89
-  expect_bytes "$executable" $((0x02BC)) 4 40000040
-  cave="$(read_bytes "$executable" $((0x04C75502)) 64)"
-  [[ ${#cave} == 128 && "$cave" != *[!c]* ]] || fail "the DX12 patch area is not untouched padding"
+  expect_bytes "$executable" $((0x02B65C80)) 6 0f84a4030000
+  expect_bytes "$executable" $((0x02B58442)) 7 413a80c7b33000
+  expect_bytes "$executable" $((0x02B58C53)) 2 747f
+  expect_bytes "$executable" $((0x02B58C71)) 2 7461
+  expect_bytes "$executable" $((0x02B4D921)) 7 0f57c04c894d30
+  expect_bytes "$executable" $((0x02CC)) 4 40000040
+  cave="$(read_bytes "$executable" $((0x04B9CE22)) 67)"
+  [[ ${#cave} == 134 && "$cave" != *[!c]* ]] || fail "the DX12 patch area is not untouched padding"
 }
 
 file_state() {
@@ -86,18 +86,27 @@ shader_pak_state() {
   local pak hash
   pak="$(shader_pak_path "$1")"
   [[ -e "$pak" ]] || { printf 'absent\n'; return; }
-  [[ -f "$pak" ]] || { printf 'conflict\n'; return; }
+  [[ -f "$pak" && ! -L "$pak" ]] || { printf 'conflict\n'; return; }
   hash="$(sha256_file "$pak")"
   [[ "$hash" == "$SHADER_PAK_SHA256" ]] && printf 'installed\n' || printf 'conflict\n'
 }
 
 verify_bundled_shader_pak() {
-  [[ -f "$BUNDLED_SHADER_PAK" ]] || fail "The bundled HDR shader PAK is missing: $BUNDLED_SHADER_PAK"
+  [[ -f "$BUNDLED_SHADER_PAK" && ! -L "$BUNDLED_SHADER_PAK" ]] || fail "The bundled HDR shader PAK is missing or is a symbolic link: $BUNDLED_SHADER_PAK"
   [[ "$(sha256_file "$BUNDLED_SHADER_PAK")" == "$SHADER_PAK_SHA256" ]] || fail "The bundled HDR shader PAK failed verification. Nothing was changed."
 }
 
 backup_path() {
-  printf '%s.pre-hdr\n' "$1"
+  local executable="$1" legacy versioned
+  legacy="${executable}.pre-hdr"
+  versioned="${legacy}.${ORIGINAL_SHA256:0:12}"
+  if [[ ! -e "$legacy" ]]; then
+    printf '%s\n' "$legacy"
+  elif [[ -f "$legacy" && "$(sha256_file "$legacy")" == "$ORIGINAL_SHA256" ]]; then
+    printf '%s\n' "$legacy"
+  else
+    printf '%s\n' "$versioned"
+  fi
 }
 
 confirm() {
@@ -109,6 +118,7 @@ confirm() {
 require_supported_path() {
   local executable="$1"
   [[ -f "$executable" ]] || fail "The file was not found: $executable"
+  [[ ! -L "$executable" ]] || fail "The executable path must not be a symbolic link."
   [[ "$(basename "$executable")" == "DevilMayCry5.exe" ]] || fail "Please choose the file named DevilMayCry5.exe."
 }
 
@@ -120,21 +130,21 @@ write_hex() {
 apply_patch_bytes() {
   local executable="$1"
   # DX11 HDR renderer gate.
-  write_hex "$executable" $((0x02C2CE0F)) 909090909090
+  write_hex "$executable" $((0x02B65C80)) 909090909090
 
   # DX12 native HDR transition and HDR10/PQ swapchain presentation.
-  write_hex "$executable" $((0x02C1E221)) e9007d05029090
-  write_hex "$executable" $((0x04C75526)) 41c680b7b3300001453aa8b7b330000f9545a8e9ee82fafd
-  write_hex "$executable" $((0x02C1EA27)) 9090
-  write_hex "$executable" $((0x02C1EA45)) 9090
-  write_hex "$executable" $((0x02C12CD8)) e925320602
-  write_hex "$executable" $((0x04C75502)) 488b4c24504885c9740e488b01ba0c000000ff90300100000f57c04c897df8e9b9cdf9fd
+  write_hex "$executable" $((0x02B58442)) e9ff5304029090
+  write_hex "$executable" $((0x04B9CE46)) 41c680c7b3300001413a80c7b33000e9efabfbfd
+  write_hex "$executable" $((0x02B58C53)) 9090
+  write_hex "$executable" $((0x02B58C71)) 9090
+  write_hex "$executable" $((0x02B4D921)) e9fcfe04029090
+  write_hex "$executable" $((0x04B9CE22)) 488b4c24504885c9740e488b01ba0c000000ff90300100000f57c04c894d30e9e200fbfd
   # Allow execution only in the existing padding section used by the DX12 hooks.
-  write_hex "$executable" $((0x02BC)) 40000060
+  write_hex "$executable" $((0x02CC)) 40000060
 }
 
 apply_patch() {
-  local executable="$1" allow_without_prompt="$2" state pak_state backup executable_tmp pak pak_tmp actual_hash
+  local executable="$1" allow_without_prompt="$2" state pak_state backup executable_tmp pak pak_tmp actual_hash source_hash
   require_supported_path "$executable"
   verify_bundled_shader_pak
   state="$(file_state "$executable")"
@@ -153,7 +163,7 @@ apply_patch() {
 
   backup="$(backup_path "$executable")"
   if [[ -e "$backup" ]]; then
-    [[ "$(file_state "$backup")" == "original" ]] || fail "A backup already exists but does not match the supported original: $backup"
+    [[ -f "$backup" && ! -L "$backup" && "$(sha256_file "$backup")" == "$ORIGINAL_SHA256" ]] || fail "A backup already exists but does not match the supported original: $backup"
   elif [[ "$state" == patched ]]; then
     fail "The executable is patched but its verified original backup is missing. The shader PAK was not installed."
   fi
@@ -168,7 +178,7 @@ apply_patch() {
 
   if [[ "$state" == original && ! -e "$backup" ]]; then
     cp -p "$executable" "$backup"
-    [[ "$(file_state "$backup")" == original ]] || fail "Backup verification failed."
+    [[ "$(sha256_file "$backup")" == "$ORIGINAL_SHA256" ]] || fail "Backup verification failed."
     printf '\nBackup created.\n'
   fi
 
@@ -189,15 +199,24 @@ apply_patch() {
     cp -p "$BUNDLED_SHADER_PAK" "$pak_tmp"
     [[ "$(sha256_file "$pak_tmp")" == "$SHADER_PAK_SHA256" ]] || fail "Shader PAK verification failed. Your game files were left untouched."
   fi
+  source_hash="$ORIGINAL_SHA256"
+  [[ "$state" != patched ]] || source_hash="$PATCHED_SHA256"
+  [[ ! -L "$executable" && "$(sha256_file "$executable")" == "$source_hash" ]] || fail "The executable changed during validation. Nothing was installed."
   if [[ -n "$pak_tmp" ]]; then mv -f "$pak_tmp" "$pak"; pak_tmp=""; fi
-  if [[ -n "$executable_tmp" ]]; then mv -f "$executable_tmp" "$executable"; executable_tmp=""; fi
+  if [[ -n "$executable_tmp" ]]; then
+    if ! mv -f "$executable_tmp" "$executable"; then
+      [[ "$pak_state" != absent ]] || rm -f "$pak"
+      fail "The executable could not be replaced. Any shader PAK installed by this attempt was removed."
+    fi
+    executable_tmp=""
+  fi
   trap - RETURN
   printf '\nSuccess: the HDR patch is installed.\n'
   printf 'Your original file is safely kept at:\n  %s\n' "$backup"
 }
 
 restore_original() {
-  local executable="$1" allow_without_prompt="${2:-no}" state pak_state backup tmp pak
+  local executable="$1" allow_without_prompt="${2:-no}" state pak_state backup tmp pak source_hash
   require_supported_path "$executable"
   state="$(file_state "$executable")"
   pak_state="$(shader_pak_state "$executable")"
@@ -209,7 +228,7 @@ restore_original() {
   fi
   backup="$(backup_path "$executable")"
   if [[ "$state" == patched ]]; then
-    [[ -f "$backup" && "$(file_state "$backup")" == original ]] || fail "A matching original backup was not found. Nothing was changed."
+    [[ -f "$backup" && ! -L "$backup" && "$(sha256_file "$backup")" == "$ORIGINAL_SHA256" ]] || fail "A matching original backup was not found. Nothing was changed."
   fi
   if [[ "$allow_without_prompt" != yes ]]; then
     printf "\nThis will restore the original executable and remove this patch's shader PAK.\n"
@@ -222,7 +241,9 @@ restore_original() {
   if [[ "$state" == patched ]]; then
     tmp="$(mktemp "${executable}.tmp.XXXXXX")"
     cp -p "$backup" "$tmp"
-    [[ "$(file_state "$tmp")" == original ]] || fail "Backup verification failed. Your patched game executable was left untouched."
+    [[ "$(sha256_file "$tmp")" == "$ORIGINAL_SHA256" ]] || fail "Backup verification failed. Your patched game executable was left untouched."
+    source_hash="$PATCHED_SHA256"
+    [[ ! -L "$executable" && "$(sha256_file "$executable")" == "$source_hash" ]] || fail "The executable changed during validation. Nothing was restored."
     mv -f "$tmp" "$executable"
     tmp=""
   fi
@@ -233,7 +254,7 @@ restore_original() {
 }
 
 report_state() {
-  printf 'executable: %s\nshader-pak: %s\n' "$(file_state "$1")" "$(shader_pak_state "$1")"
+  printf 'executable: %s (Steam build 24901913)\nshader-pak-009: %s\n' "$(file_state "$1")" "$(shader_pak_state "$1")"
 }
 
 ask_for_executable() {

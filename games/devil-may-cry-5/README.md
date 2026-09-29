@@ -23,9 +23,11 @@ CrossOver with D3DMetal or DXMT.
 The patch installs:
 
 - a modified `DevilMayCry5.exe` that enables DMC5's HDR paths;
-- `re_chunk_000.pak.patch_008.pak`, which contains two HDR shader replacements.
+- `re_chunk_000.pak.patch_009.pak`, which contains two HDR shader replacements.
 
-The original executable is saved as `DevilMayCry5.exe.pre-hdr`.
+The original executable is saved as `DevilMayCry5.exe.pre-hdr`. If that name
+already exists with different contents, the patcher creates a hash-suffixed
+backup instead of overwriting it.
 
 ## Disclaimer
 
@@ -41,10 +43,14 @@ Capcom, CodeWeavers, Apple, or Valve. Use it at your own risk.
 - an HDR-capable display;
 - the supported DMC5 executable build.
 
-Quit DMC5 before applying or restoring the patch. The patcher checks the game
-build before it changes anything. It supports this executable SHA-256:
+Quit DMC5 before applying or restoring the patch. The patcher checks the exact
+game build before it changes anything. It supports Steam build `24901913`:
 
-`1b881b52184fbb4de08740d68e77b49093bf4c5e8310ba185454fd34eba18e1d`
+`5523cb79fe13858335e893ca7ed98b4021a96b8cec92940058cb5d58d09d4169`
+
+The September 2026 update added an official
+`re_chunk_000.pak.patch_008.pak`, so the HDR shaders now use slot `009`.
+The patcher leaves Capcom's slot `008` untouched.
 
 ## Install
 
@@ -111,6 +117,9 @@ The shader archive replaces DMC5's HDR post-process and final Rec.2020/PQ
 conversion shaders. These replacements are adapted from the DMC5 module in
 RenoDX, run as part of DMC5's normal render pipeline, and use DMC5's existing
 brightness controls. No shader injector is needed at runtime.
+
+See [Technical details](TECHNICAL.md) for build hashes, patch offsets, original
+bytes, replacement behavior, and validation status.
 
 ## Credits
 
