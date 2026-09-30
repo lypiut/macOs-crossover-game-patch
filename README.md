@@ -18,6 +18,7 @@ backup where applicable, and includes a restore path.
 | --- | --- | --- |
 | [Devil May Cry 5 — HDR](games/devil-may-cry-5/README.md) | Enables the game's native HDR paths in DirectX 11 and DirectX 12, with HDR shader replacements adapted from RenoDX. | CrossOver with D3DMetal or DXMT, an HDR display, and a supported DMC5 build |
 | [Alan Wake 2 — HDR](games/alan-wake-2/README.md) | Enables the game's native HDR setting in `renderer.ini`. | Python 3, an HDR display, and a compatible CrossOver graphics backend |
+| [Mafia: Definitive Edition — experimental HDR](games/mafia-definitive-edition/README.md) | Adds a static FP16 render path, HDR10/PQ presentation, and fixed RenoDX shader replacements without a runtime injector. | GOG 1.0.3 v2, DX11, D3DMetal, and an HDR display |
 
 [Installation, HDR captures, and technical details →](games/devil-may-cry-5/README.md)
 
@@ -79,8 +80,9 @@ This work builds on the macOS gaming and open-source compatibility ecosystem:
 - [GStreamer](https://gstreamer.freedesktop.org/) provides the open-source
   multimedia framework used by the video compatibility tool.
 - [RenoDX](https://github.com/clshortfuse/renodx), by Carlos Lopez Jr., is the
-  source of the shader work adapted for the DMC5 HDR patch. See the
-  [third-party notices](games/devil-may-cry-5/THIRD_PARTY_NOTICES.md).
+  source of shader work adapted for the DMC5 and Mafia HDR patches. See their
+  respective [DMC5](games/devil-may-cry-5/THIRD_PARTY_NOTICES.md) and
+  [Mafia](games/mafia-definitive-edition/THIRD_PARTY_NOTICES.md) notices.
 
 Thanks to the developers and communities behind these projects. Please report
 issues with this repository here rather than to the upstream projects unless
