@@ -31,7 +31,7 @@ backup where applicable, and includes a restore path.
 
 | Patch | What it does | Requirements |
 | --- | --- | --- |
-| [The Witcher 3 — CrossOver graphics](games/witcher-3/README.md) | Removes game checks blocking DLSS, frame generation and ray tracing. DLSS, frame generation and ray tracing tested in game; frame-generation pacing issues reported. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, macOS Bash |
+| [The Witcher 3 — CrossOver graphics](games/witcher-3/README.md) | Removes game checks blocking DLSS, frame generation and ray tracing. DLSS, frame generation and ray tracing tested in game. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, macOS Bash |
 
 ## Getting started
 

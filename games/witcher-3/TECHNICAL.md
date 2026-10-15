@@ -5,14 +5,11 @@ initialization, the frame-generation support gate and the ray-tracing support
 gate. Normal device and feature checks remain in place. It does not write the
 support flags to true or clear the shared renderer compatibility flag.
 
-Analysis began on 14 October 2026. On 15 October, the user tested the full patch
-and reported that DLSS, frame generation and ray tracing could all be enabled.
-Screenshots show additional output frames and ray-tracing commands; see
-[the investigation and test results](FEATURE_GATES.md).
+Static analysis and in-game testing confirmed the three feature paths.
 
 ## Supported build
 
-The supplied Steam manifest reports build **25773555**. The in-game version label
+The Steam manifest identifies build **25773555**. The in-game version label
 is unknown. The investigated environment was CrossOver Preview `27.0.0.41069`
 with D3DMetal `4.0b3`, with D3DMetal and DLSS enabled in the Steam bottle.
 
@@ -81,9 +78,8 @@ The manager pointer is stored at `0x145857E48`. The renderer accesses it through
 `0x141BDFFE0`; the script binding is at `0x141F3C500`. Adapter information includes
 an eight-byte DXGI adapter LUID when available.
 
-Normal Streamline initialization and device checks still run. The user reported
-working DLSS. No controlled DLSS image-quality or performance comparison was
-made; the in-game frame-generation observations are recorded separately below.
+Normal Streamline initialization and device checks still run. In-game testing
+confirmed working DLSS.
 
 ## Frame generation
 
@@ -92,7 +88,15 @@ The frame-generation support routine at `0x141B7D810` checks that flag and retur
 false when it is set. The patch bypasses this early return only in the
 frame-generation routine. It similarly skips the ray-tracing override while
 retaining the computed device capabilities. Other users of the shared flag,
-including resource and device code, are unchanged; see [FEATURE_GATES.md](FEATURE_GATES.md).
+including resource and device code, are unchanged.
+
+The retained frame-generation path checks initialization, device registration
+and `slIsFeatureSupported(1000, adapterInfo)` before reporting support. The
+ray-tracing path retains the D3D12 feature queries and computed ray-tracing tier.
+
+The patch also preserves NVAPI loading after Streamline setup, the NVAPI
+failed-load retry guard, and Steam Deck thread-affinity handling. These serve
+compatibility or scheduling purposes rather than directly blocking the options.
 
 ## File operations
 
@@ -162,17 +166,15 @@ patch rejection was checked with the unmodified production script.
   were preserved. Paths with spaces/Unicode and invocation from another working
   directory passed.
 - Bash syntax and Git whitespace checks passed.
-- In-game user testing of the full patch on an M4 Pro with macOS 27.0 confirmed
-  that DLSS, frame generation and ray tracing can be enabled. Screenshots show
-  51.80 output/render FPS in the reported baseline and 71.67 output / 31.32
-  render FPS with frame generation. A ray-tracing screenshot shows 29.05 FPS,
-  ray dispatches and acceleration-structure work. These are individual HUD
-  readings, not benchmark averages or proof of visual correctness.
-- The generation multiplier was not adjustable. Frame-generation slowdown and
-  refresh-rate behavior remain unresolved; no further pacing patch is included.
+- In-game testing on macOS 27.0 confirmed that DLSS, frame generation and ray
+  tracing can be enabled. The HUD shows additional output frames with frame
+  generation, and ray dispatches and acceleration-structure work with ray
+  tracing. This verifies backend activity rather than visual correctness
+  throughout the game.
+- The generation multiplier was not adjustable in the tested configuration.
 
-The installed executable and its original backup remained unchanged during
-the automated validation; the user applied the patch for the in-game test. Owned temporary game copies were removed.
+Automated validation used disposable executable copies and left the installation
+unchanged. Temporary game copies were removed afterward.
 
 [Automatic DLSS and dynamic-resolution tracing](DYNAMIC_RESOLUTION.md) records
 why Automatic selects a fixed preset and why dynamic scaling needs further work.

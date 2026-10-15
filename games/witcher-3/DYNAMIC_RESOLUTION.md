@@ -27,11 +27,11 @@ defines the mode values and optimal-settings structure.
 
 Build: Steam **25773555**, `bin/x64_dx12/witcher3.exe`. Original SHA-256:
 `2df765398a3d1f165db418271be7200178320a4466817379f2fa0dc0001fb101`.
-The installed executable inspected here has the full graphics-patch hash:
+The full graphics-patch hash is:
 `5dc266a88709f0bfe3573ef5f5e3d055dfcd6a5a698a8ab4aa390be34015e419`.
 The three existing compatibility patches do not alter these functions.
-CrossOver Preview `27.0.0.41069`, GPTK `4.0b3`; user test hardware M4 Pro,
-macOS 27.0. Tools: Ghidra 12.1.4 and Apple LLVM 21.0.0.
+Runtime: CrossOver Preview `27.0.0.41069`, GPTK `4.0b3`, macOS 27.0.
+Tools: Ghidra 12.1.4 and Apple LLVM 21.0.0.
 
 All addresses below are virtual addresses using image base `0x140000000`.
 These are analysis locations, not proposed patch sites.

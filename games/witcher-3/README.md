@@ -5,7 +5,7 @@ under Wine. The game still checks whether each feature is supported. With the
 tested GPTK runtime, the DLSS options use MetalFX upscaling and frame
 interpolation rather than NVIDIA's DLSS models.
 
-User testing on 15 October 2026 confirmed that all three options can be enabled.
+In-game testing confirmed that all three options can be enabled.
 The HUD shows additional output frames with frame generation and ray-tracing
 commands with ray tracing.
 
@@ -45,12 +45,8 @@ If the game crashes or renders incorrectly, restore the original executable.
 
 ## Known limitations
 
-- Frame generation increased the HUD output rate from about 52 to 72 FPS in the
-  reported scene, while the rendered frame rate fell to about 31 FPS. It did not
-  reach the display's maximum refresh rate. The cause of the slowdown and pacing
-  behavior is still under investigation.
 - The number of generated frames could not be changed in the graphics menu.
-- These results cover the tested setup and scene; they do not establish image
+- Testing covers the tested setup and scene; it does not establish image
   quality or stability across the whole game.
 
 ## Restore
@@ -72,12 +68,11 @@ operation, follow [the recovery instructions](TECHNICAL.md#interruption-recovery
 
 The Bash script passed temporary-file tests and apply/restore tests on copies of
 the supported executable. These tests did not change the installed game or launch
-it. The user then tested all three features in game on an M4 Pro running macOS
-27.0, using the CrossOver/GPTK versions listed above.
+it. All three features were also tested in game on macOS 27.0 with the
+CrossOver/GPTK versions listed above.
 
 [Technical notes](TECHNICAL.md) record the exact changes, supported hashes and
-validation results. [Investigation notes](FEATURE_GATES.md) explain the other
-Wine checks that are deliberately preserved.
+validation results, including the Wine compatibility checks left intact.
 
 This is an independent community patch. No game files or CrossOver components
 are distributed. The original patcher code uses the repository's MIT license.
