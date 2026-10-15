@@ -27,6 +27,12 @@ backup where applicable, and includes a restore path.
 | --- | --- | --- |
 | [System GStreamer patcher](tools/crossover-system-gstreamer/README.md) | Helps with crashes when a game opens a cutscene, intro, or menu video. | Modifies the selected CrossOver application and therefore affects all of its bottles. |
 
+## Experimental patches
+
+| Patch | What it does | Requirements |
+| --- | --- | --- |
+| [The Witcher 3 — CrossOver graphics](games/witcher-3/README.md) | Unlocks DLSS, frame generation and ray tracing; tested in game. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, macOS Bash |
+
 ## Getting started
 
 Clone the repository:
@@ -43,9 +49,7 @@ cd games/devil-may-cry-5
 ./patch-hdr.sh
 ```
 
-The patchers are interactive by default and show the planned changes before
-asking for confirmation. Command-line and restore instructions are documented
-on each patch's page.
+Each patch page explains how to run it and restore the original files.
 
 ## Safety and project principles
 
