@@ -50,7 +50,6 @@ cd games/devil-may-cry-5
 ```
 
 Each patch page explains how to run it and restore the original files.
-The Witcher 3 page includes step-by-step Terminal instructions.
 
 ## Safety and project principles
 
