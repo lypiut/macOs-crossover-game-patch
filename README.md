@@ -27,6 +27,12 @@ backup where applicable, and includes a restore path.
 | --- | --- | --- |
 | [System GStreamer patcher](tools/crossover-system-gstreamer/README.md) | Helps with crashes when a game opens a cutscene, intro, or menu video. | Modifies the selected CrossOver application and therefore affects all of its bottles. |
 
+## Experimental patches
+
+| Patch | What it does | Requirements |
+| --- | --- | --- |
+| [The Witcher 3 — DLSS initialization](games/witcher-3/README.md) | Allows the game to initialize its DLSS library under CrossOver. In-game behavior is untested. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, Python 3.9+ |
+
 ## Getting started
 
 Clone the repository:
