@@ -1,78 +1,75 @@
 # The Witcher 3 — CrossOver graphics patch
 
-This patch removes game checks that block DLSS, frame generation and ray tracing
-under Wine. The game still checks whether each feature is supported. With the
-tested GPTK runtime, the DLSS options use MetalFX upscaling and frame
-interpolation rather than NVIDIA's DLSS models.
+Unlocks the DLSS, frame generation and ray tracing options that Witcher 3 blocks
+when running through CrossOver. All three have been tested in game. With the
+tested GPTK runtime, DLSS upscaling and frame generation use Apple's MetalFX.
 
-In-game testing confirmed that all three options can be enabled.
-The HUD shows additional output frames with frame generation and ray-tracing
-commands with ray tracing.
+## Before you start
 
-## Requirements
+- This patch supports **Steam build 25773555**, in **DirectX 12** mode. The script
+  checks your game file and stops if it does not match.
+- In CrossOver, select **D3DMetal** and enable **DLSS** for the bottle containing
+  the game. Testing used CrossOver Preview `27.0.0.41069`, GPTK `4.0b3` and
+  macOS `27.0`.
+- Quit Witcher 3 before applying or removing the patch.
 
-- Steam build **25773555**, using the DirectX 12 executable. The script verifies
-  the exact file and refuses other builds or modified executables.
-- CrossOver with **D3DMetal** selected and **DLSS** enabled. The investigation
-  used CrossOver Preview `27.0.0.41069` with GPTK `4.0b3`.
-- macOS and its bundled Bash and command-line tools. No Python or downloads are
-  needed.
+No Python or extra tools are needed. The patch only changes Witcher 3's DX12
+executable and saves a backup first.
 
-## Apply
+## Apply the patch
 
-Quit Witcher 3. Open Terminal in this folder and supply your game folder:
+1. Download the repository ZIP from the GitHub branch containing this patch:
+   choose **Code → Download ZIP**, then double-click the ZIP to extract it.
+   If you already downloaded the project, use that copy.
+2. In Finder, open `games`, then `witcher-3`. Find `patch-dlss.sh`.
+3. Open a second Finder window and locate your **The Witcher 3** game folder.
+   It is usually inside your Steam library's `steamapps/common` folder. Select
+   the folder containing `bin` and `content`.
+4. Press **⌘ Space**, type **Terminal**, then press **Return**.
+5. Type `bash` followed by a space. Drag `patch-dlss.sh` from Finder into
+   Terminal. This inserts its full path; you do not need to type it.
+6. Add a space, then drag your **The Witcher 3** folder into Terminal.
+7. Press **Return** and wait for `apply completed and verified`.
 
-```bash
-./patch-dlss.sh "/path/to/The Witcher 3"
-```
-
-This applies all three changes and saves the original executable beside it as
-`witcher3.exe.pre-dlss-wine-gate.2df765398a3d`. Keep that backup.
-
-Applying again is safe. The script accepts only the original executable or
-the full patch.
-
-You can also supply `bin/x64_dx12/witcher3.exe` directly. Use the full script path
-when running from another folder. Keep paths with spaces in quotes.
-
-## Test
-
-Launch the **DirectX 12** version. Start with DLSS, then try frame generation and
-ray tracing separately through the graphics settings. Check stability and image
-quality during gameplay. A selectable option alone does not prove it works.
-
-If the game crashes or renders incorrectly, restore the original executable.
-
-## Known limitations
-
-- The number of generated frames could not be changed in the graphics menu.
-- Testing covers the tested setup and scene; it does not establish image
-  quality or stability across the whole game.
-
-## Restore
-
-With Witcher 3 closed:
+The command will look like this, with your own paths:
 
 ```bash
-./patch-dlss.sh --restore "/path/to/The Witcher 3"
+bash "/path/to/patch-dlss.sh" "/path/to/The Witcher 3"
 ```
 
-Restore keeps the backup. It refuses to overwrite an executable changed by an
-update or another mod.
+Launch the game in **DirectX 12** mode and choose the features you want in the
+graphics settings. The number of generated frames was not adjustable in testing.
 
-Steam updates or **Verify integrity** can remove the patch. A new build needs
-fresh analysis before it can be supported. If the script reports an interrupted
-operation, follow [the recovery instructions](TECHNICAL.md#interruption-recovery).
+Keep the backup named `witcher3.exe.pre-dlss-wine-gate.2df765398a3d` beside the
+executable. Running the patch again is safe.
 
-## Details
+## Remove the patch
 
-The Bash script passed temporary-file tests and apply/restore tests on copies of
-the supported executable. These tests did not change the installed game or launch
-it. All three features were also tested in game on macOS 27.0 with the
-CrossOver/GPTK versions listed above.
+Quit the game and open Terminal. Type `bash` and a space, drag in the script,
+then type ` --restore `, including the spaces. Drag in the game folder and
+press **Return**:
 
-[Technical notes](TECHNICAL.md) record the exact changes, supported hashes and
-validation results, including the Wine compatibility checks left intact.
+```bash
+bash "/path/to/patch-dlss.sh" --restore "/path/to/The Witcher 3"
+```
 
-This is an independent community patch. No game files or CrossOver components
-are distributed. The original patcher code uses the repository's MIT license.
+Wait for `restore completed and verified`. The original executable is restored
+and the backup is kept.
+
+## If something goes wrong
+
+- **Unsupported executable:** your game build differs or another mod changed
+  the file. The script will not modify it.
+- **Game still running:** close Witcher 3 and try again.
+- **Rendering problems or crashes:** remove the patch using the command above.
+- **After a Steam update or Verify integrity:** the patch may be removed. A new
+  game build needs a matching patch; do not reuse offsets from another build.
+- **Interrupted operation or backup conflict:** see
+  [recovery instructions](TECHNICAL.md#interruption-recovery).
+
+[Technical notes](TECHNICAL.md) contain the supported file hashes and exact
+changes for anyone who wants to inspect them.
+
+Independent community patch, unaffiliated with CD PROJEKT RED, CodeWeavers,
+Apple or NVIDIA. No game files or CrossOver components are included. Original
+patcher code is licensed under the repository's MIT license.

@@ -1,198 +1,94 @@
-# Witcher 3 CrossOver graphics patch — technical notes
+# Witcher 3 — technical reference
 
-The patch changes three instructions in the DX12 executable: Streamline
-initialization, the frame-generation support gate and the ray-tracing support
-gate. Normal device and feature checks remain in place. It does not write the
-support flags to true or clear the shared renderer compatibility flag.
+For installation and removal, use the [README](README.md).
 
-Static analysis and in-game testing confirmed the three feature paths.
+## What changes
 
-## Supported build
+The game detects Wine and blocks three graphics features. The patch allows
+DLSS initialization, bypasses the frame-generation rejection and prevents the
+ray-tracing support result from being cleared. Normal device and feature checks
+still run. NVAPI setup, resource handling and thread scheduling are unchanged.
 
-The Steam manifest identifies build **25773555**. The in-game version label
-is unknown. The investigated environment was CrossOver Preview `27.0.0.41069`
-with D3DMetal `4.0b3`, with D3DMetal and DLSS enabled in the Steam bottle.
+Only `bin/x64_dx12/witcher3.exe` from **Steam build 25773555** is supported.
+Testing used CrossOver Preview `27.0.0.41069`, GPTK `4.0b3` and macOS `27.0`.
+The in-game version label was not recorded.
 
-| Executable state | SHA-256 |
+| File state | SHA-256 |
 | --- | --- |
 | Original | `2df765398a3d1f165db418271be7200178320a4466817379f2fa0dc0001fb101` |
-| Full patch | `5dc266a88709f0bfe3573ef5f5e3d055dfcd6a5a698a8ab4aa390be34015e419` |
+| Patched | `5dc266a88709f0bfe3573ef5f5e3d055dfcd6a5a698a8ab4aa390be34015e419` |
 
-These identities apply to `bin/x64_dx12/witcher3.exe`. No other executable is
-supported. File offsets must be verified again for any new build.
+## Exact changes
 
-## Why the menu rejects DLSS
+File offsets refer to positions in the executable. Virtual addresses use image
+base `0x140000000` and are provided for disassembly.
 
-The game looks for `wine_get_version` in `ntdll.dll`. It checks whether that
-export exists; it does not call it or compare Wine versions. When the export is
-present, the game skips creating its Streamline manager.
+| Feature | File offset | Virtual address | Original bytes | Replacement bytes |
+| --- | --- | --- | --- | --- |
+| DLSS initialization | `0x1B77ECB` | `0x141B788CB` | `75 42` | `90 90` |
+| Frame generation | `0x1B7CE30` | `0x141B7D830` | `74 17` | `EB 17` |
+| Ray tracing | `0x1ECEECD` | `0x141ECF8CD` | `0F 84 66 01 00 00` | `E9 67 01 00 00 90` |
 
-CrossOver's supplied `ntdll.dll` exports `wine_get_version` at RVA `0x811a0`.
-The earlier unpatched launch loaded `sl.interposer.dll`, but the module trace
-showed no Streamline feature plugins loading. This agrees with the static trace,
-though the branch was not observed in a debugger during that launch.
+Each replacement covers one complete instruction; eight byte values change in
+total. There are no added hooks or stack changes. The first replacement lets
+Streamline initialize instead of jumping to `0x141B7890F`. The other two jump
+to `0x141B7D849` and `0x141ECFA39`, retaining the existing capability checks.
+The shared Wine compatibility flag is not cleared globally.
 
-The menu uses `GetIsDLSSSupported()`, which returns false when the Streamline
-manager is absent. Two game scripts connect that result to the menu:
-
-- `content/content0/scripts/game/gui/main_menu/ingamemenu/igmOptions.ws:450`
-  locks the DLSS selection.
-- `content/content0/scripts/game/gui/main_menu/ingameMenu.ws:1557` passes support
-  to the Flash menu; line `1837` displays `option_warning_dlss_support` after a
-  rejected selection.
-
-The missing manager is an earlier blocker than GPU or driver checks. A missing
-Streamline log alone should therefore not be described as a failed `slInit` call.
-
-## Exact change
-
-Virtual addresses below use the PE image base `0x140000000`.
-
-| File offset | Virtual address | Original bytes | Replacement |
-| --- | --- | --- | --- |
-| `0x1B77ECB` | `0x141B788CB` | `75 42` | `90 90` |
-| `0x1B7CE30` | `0x141B7D830` | `74 17` | `EB 17` |
-| `0x1ECEECD` | `0x141ECF8CD` | `0F 84 66 01 00 00` | `E9 67 01 00 00 90` |
-
-The original jump skips to `0x141B7890F` when Wine is detected. Removing it lets
-execution continue into the existing allocation and constructor path. The
-preceding instruction starts at `0x141B788C8`; the following instruction starts
-at `0x141B788CD`. Instruction boundaries were checked with LLVM disassembly.
-
-Each replacement covers a complete instruction. There is no hook, code cave,
-stack or calling-convention change. The frame-generation jump reaches
-`0x141B7D849`; the ray-tracing jump reaches `0x141ECFA39`. Both targets and the
-full output hash were verified on a disposable executable copy. Eight byte
-values change across the three instruction sites.
-
-## Support checks after initialization
-
-| Step | Game virtual address | Result |
-| --- | --- | --- |
-| Create Streamline manager | `0x141B831D0` | Calls `slInit`; success is stored at manager `+0x16`. |
-| Register graphics device | `0x141ED7E70` | Calls `slSetD3DDevice`; success is stored at `+0x17`. |
-| Refresh feature support | `0x141B82DB0` | Checks both flags, then calls `slIsFeatureSupported(0, adapterInfo)` for DLSS upscaling. A zero result sets `+0x18`. |
-| Read menu support | `0x141BE0090` | Returns false if the manager is missing or `+0x18` is zero. |
-
-The manager pointer is stored at `0x145857E48`. The renderer accesses it through
-`0x141BDFFE0`; the script binding is at `0x141F3C500`. Adapter information includes
-an eight-byte DXGI adapter LUID when available.
-
-Normal Streamline initialization and device checks still run. In-game testing
-confirmed working DLSS.
-
-## Frame generation
-
-A separate Wine lookup at `0x141EE5620` sets the flag at `0x14405AEFA`.
-The frame-generation support routine at `0x141B7D810` checks that flag and returns
-false when it is set. The patch bypasses this early return only in the
-frame-generation routine. It similarly skips the ray-tracing override while
-retaining the computed device capabilities. Other users of the shared flag,
-including resource and device code, are unchanged.
-
-The retained frame-generation path checks initialization, device registration
-and `slIsFeatureSupported(1000, adapterInfo)` before reporting support. The
-ray-tracing path retains the D3D12 feature queries and computed ray-tracing tier.
-
-The patch also preserves NVAPI loading after Streamline setup, the NVAPI
-failed-load retry guard, and Steam Deck thread-affinity handling. These serve
-compatibility or scheduling purposes rather than directly blocking the options.
-
-## File operations
-
-The patcher uses macOS Bash 3.2 and bundled utilities, including `shasum`, `od`,
-`dd`, `cp`, `stat`, `mktemp`, `mv` and `ps`. It requires no Python, network access
-or payload. Supplying a game folder or DX12 executable applies the full patch;
-`--restore` restores the original. `--help` prints usage. There are no profiles,
-check or dry-run options. Supplying a path is the explicit apply request.
-
-Before applying or restoring, it checks for a running Witcher 3 process. If the
-process check fails, it stops. It also refuses executable symlinks, hard links,
-unknown hashes, unexpected patch bytes and conflicting backups.
-
-Apply saves a verified original as
-`witcher3.exe.pre-dlss-wine-gate.2df765398a3d`. Existing backups are never
-overwritten. The output is staged in the executable's folder and its full hash
-is verified. The input is checked again before atomic replacement. File mode,
-ownership, timestamps and extended attributes are preserved where supported;
-metadata failures stop installation.
-
-Only the original and full-patch hashes are accepted. Restore requires the
-exact full-patch hash and a verified original backup. Later
-unrelated edits are refused. Both repeated apply and repeated restore are safe;
-backups are kept. An update can replace the executable and remove the patch.
-
-## Interruption recovery
-
-Ordinary errors and Ctrl-C remove the patcher's temporary stage and lock. A crash,
-SIGKILL or power loss can leave these files beside the executable:
-
-- `witcher3.exe.tmp.*` — a staged copy;
-- `witcher3.exe.dlss-wine-gate.lock/` — a lock directory containing a `pid` file;
-- an incomplete backup.
-
-1. Confirm that the game and patcher are closed. Do not remove an active lock.
-2. Preserve the files for inspection and compare the executable and backup hashes
-   with the supported hashes above.
-3. If an abandoned lock or partial backup blocks recovery, preserve it outside
-   the game folder after verifying that it belongs to the interrupted operation.
-4. Apply or restore again. The script revalidates the executable and backup.
-
-A valid original backup can be reused. If the executable has an unknown hash,
-recover it through Steam and keep conflicting files for inspection. Do not force
-the patch onto it. Atomic replacement does not guarantee survival through power
-loss on every filesystem.
-
-## Validation
-
-Validation runs on 15 October 2026 used temporary harnesses outside the repository.
-No test scripts or proprietary fixtures are distributed. The final fixture rerun
-mocked process enumeration only in disposable fixture scripts because the game
-was running; production process checks were left intact. Supported-build partial
-patch rejection was checked with the unmodified production script.
-
-- Eleven Bash fixture tests passed: apply/repeat apply, restore/repeat restore,
-  rejection of partial patches and unsupported inputs, backup
-  conflicts, symlinks/hard links, existing locks, corrupt staged output,
-  concurrent input changes, later edits, failed installation, failed backup copy
-  and signal cleanup.
-- Six process-check fixtures passed: no game, direct game process, Wine loader
-  with the game argument, another Wine app, the calling shell and failed `ps`.
-- On a disposable Steam-build copy, original → full patch → original passed
-  with exact expected hashes, including repeated operations. A partial patch
-  was refused for both apply and restore, leaving the files unchanged.
-- LLVM disassembly confirmed both new branch targets. Eight changed byte values
-  matched the three planned sites. An extended attribute and executable mode
-  were preserved. Paths with spaces/Unicode and invocation from another working
-  directory passed.
-- Bash syntax and Git whitespace checks passed.
-- In-game testing on macOS 27.0 confirmed that DLSS, frame generation and ray
-  tracing can be enabled. The HUD shows additional output frames with frame
-  generation, and ray dispatches and acceleration-structure work with ray
-  tracing. This verifies backend activity rather than visual correctness
-  throughout the game.
-- The generation multiplier was not adjustable in the tested configuration.
-
-Automated validation used disposable executable copies and left the installation
-unchanged. Temporary game copies were removed afterward.
-
-[Automatic DLSS and dynamic-resolution tracing](DYNAMIC_RESOLUTION.md) records
-why Automatic selects a fixed preset and why dynamic scaling needs further work.
-
-## Reproducing the analysis
-
-Tools: Ghidra **12.1.4** and Apple LLVM **21.0.0**. Ghidra used the Windows x86-64
-PE loader with targeted decompilation. Some inferred prototypes and split function
-boundaries were imperfect, so the branch, strings, imports and flag writes were
-checked against disassembly.
+Ghidra `12.1.4` and Apple LLVM `21.0.0` were used to trace the checks and verify
+instruction boundaries. These commands inspect the relevant regions:
 
 ```bash
 xcrun llvm-objdump -d --start-address=0x141b788a3 --stop-address=0x141b7890f "/path/to/bin/x64_dx12/witcher3.exe"
-xcrun llvm-objdump -d --start-address=0x141be0090 --stop-address=0x141be00c9 "/path/to/bin/x64_dx12/witcher3.exe"
-xcrun llvm-objdump -p "/path/to/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows/ntdll.dll"
-shasum -a 256 "/path/to/bin/x64_dx12/witcher3.exe"
+xcrun llvm-objdump -d --start-address=0x141b7d810 --stop-address=0x141b7d850 "/path/to/bin/x64_dx12/witcher3.exe"
+xcrun llvm-objdump -d --start-address=0x141ecf8c0 --stop-address=0x141ecfa50 "/path/to/bin/x64_dx12/witcher3.exe"
 ```
 
-Only original patcher code and research notes are distributed. This work is
-unaffiliated with CD PROJEKT RED, CodeWeavers, Apple or NVIDIA. The repository's
-MIT license applies to the original patcher code.
+## Backups and file checks
+
+The script uses macOS Bash 3.2 and bundled tools. It requires no downloads or
+additional runtime. Supply the game path to apply, add `--restore` to restore,
+or use `--help` for usage.
+
+It checks that the game is closed, verifies the input hash and patch bytes,
+and refuses unknown files, symlinks, hard links or conflicting backups. The
+backup is `witcher3.exe.pre-dlss-wine-gate.2df765398a3d`; an existing backup must
+match the original hash and is never overwritten.
+
+Changes are prepared in a temporary file beside the executable. The output hash
+is checked before replacement, and the input is checked again for changes.
+File permissions, ownership, timestamps and extended attributes are preserved
+where supported. Restore requires a verified backup and a recognized executable.
+Repeated apply and restore are safe; both keep the backup.
+
+## Interruption recovery
+
+A crash or power loss can leave a `witcher3.exe.tmp.*` file, a
+`witcher3.exe.dlss-wine-gate.lock` folder, or an incomplete backup beside the game
+executable. Ordinary errors and Ctrl-C clean up the temporary file and lock.
+
+1. Close the game and make sure the patcher is no longer running.
+2. Keep copies of leftover files. Compare the executable and backup with the
+   hashes above using `shasum -a 256 "/path/to/file"`.
+3. Move an abandoned lock or incomplete backup out of the game folder only after
+   confirming it belongs to the interrupted patch operation. Keep a valid backup.
+4. Run apply or restore again. If the executable is unrecognized, use Steam's
+   **Verify integrity of game files** to recover it.
+
+Do not force the patch onto an unknown file. Atomic replacement does not
+provide a guarantee against power loss on every filesystem.
+
+## Validation
+
+- Eleven temporary-file tests covered apply/restore, repeated operations,
+  rejected inputs, backup conflicts and failure recovery. Six separate tests
+  covered running-process detection. Test harnesses are not distributed.
+- Apply and restore passed on copies of the supported executable, with the
+  expected hashes. Disassembly confirmed all three replacements. File metadata,
+  paths containing spaces/Unicode and running from another folder were checked.
+- Process enumeration was mocked only in disposable fixture scripts during the
+  final fixture run; production process checks remained intact.
+- Bash syntax and Git whitespace checks passed.
+- In-game testing confirmed selectable DLSS, frame generation and ray tracing.
+  The HUD showed additional output frames and ray-tracing work. This does not
+  establish stability or visual correctness throughout the entire game.

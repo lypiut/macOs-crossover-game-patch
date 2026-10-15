@@ -31,7 +31,7 @@ backup where applicable, and includes a restore path.
 
 | Patch | What it does | Requirements |
 | --- | --- | --- |
-| [The Witcher 3 — CrossOver graphics](games/witcher-3/README.md) | Removes game checks blocking DLSS, frame generation and ray tracing. DLSS, frame generation and ray tracing tested in game. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, macOS Bash |
+| [The Witcher 3 — CrossOver graphics](games/witcher-3/README.md) | Unlocks DLSS, frame generation and ray tracing; tested in game. | Exact Steam DX12 build, CrossOver with D3DMetal/DLSS, macOS Bash |
 
 ## Getting started
 
@@ -49,9 +49,8 @@ cd games/devil-may-cry-5
 ./patch-hdr.sh
 ```
 
-The patchers are interactive by default and show the planned changes before
-asking for confirmation. Command-line and restore instructions are documented
-on each patch's page.
+Each patch page explains how to run it and restore the original files.
+The Witcher 3 page includes step-by-step Terminal instructions.
 
 ## Safety and project principles
 
